@@ -1,0 +1,2157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="UMI 与 Ego 数据质量、同步、标定和 EEF 可用性审计报告。">
+  <title>UMI / Ego 数据质量报告</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f5f5ee;
+      --paper-raised: #fbfbf7;
+      --ink: #17170f;
+      --ink-soft: #4d4e45;
+      --ink-faint: #77786d;
+      --line: rgba(23, 23, 15, 0.13);
+      --line-strong: rgba(23, 23, 15, 0.24);
+      --accent: #76b900;
+      --accent-hover: #88d100;
+      --accent-ink: #4c7800;
+      --warn: #b46809;
+      --fail: #b42318;
+      --info: #2863a6;
+      --measure: 800px;
+      --wide: 1060px;
+      --sans: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--sans);
+      font-size: 17px;
+      line-height: 1.62;
+      text-rendering: optimizeLegibility;
+    }
+    body.drawer-open { overflow: hidden; }
+    button, input { font: inherit; }
+    a { color: inherit; text-decoration: none; }
+    img, video { display: block; max-width: 100%; }
+    .accent { color: var(--accent); }
+    .muted { color: var(--ink-faint); }
+
+    .topbar {
+      position: fixed;
+      z-index: 60;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 64px;
+      padding: 0 26px;
+      color: #f5f5ee;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid transparent;
+      transition: color 180ms ease, background 180ms ease, border-color 180ms ease,
+        backdrop-filter 180ms ease;
+    }
+    .topbar[data-scrolled="true"] {
+      color: var(--ink);
+      background: rgba(245, 245, 238, 0.92);
+      border-bottom-color: var(--line);
+      backdrop-filter: blur(16px);
+    }
+    .topbar__mark {
+      letter-spacing: -0.025em;
+      font-size: 21px;
+      font-weight: 680;
+    }
+    .topbar__links, .title-links, .artifact-links {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+    .btn {
+      min-height: 34px;
+      padding: 0 13px;
+      border: 1px solid rgba(245, 245, 238, 0.35);
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      color: inherit;
+      font-size: 13px;
+      font-weight: 580;
+      line-height: 1;
+      transition: border-color 150ms ease, color 150ms ease, background 150ms ease,
+        transform 150ms ease;
+    }
+    .topbar[data-scrolled="true"] .btn, .btn--light {
+      border-color: var(--line-strong);
+    }
+    .btn:hover {
+      color: var(--accent-ink);
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .hero {
+      position: relative;
+      width: 100%;
+      min-height: min(82vh, 820px);
+      overflow: hidden;
+      color: #f5f5ee;
+      background:
+        radial-gradient(circle at 50% 30%, rgba(118, 185, 0, 0.18), transparent 36%),
+        linear-gradient(#080a08, #020302);
+    }
+    .hero::before {
+      position: absolute;
+      z-index: 0;
+      inset: 0;
+      content: "";
+      opacity: 0.14;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+      background-size: 48px 48px;
+      animation: drift 20s linear infinite;
+    }
+    @keyframes drift {
+      to { background-position: 48px 96px, 48px 96px; }
+    }
+    .hero__fallback {
+      position: absolute;
+      z-index: 0;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(245, 245, 238, 0.18);
+      text-align: center;
+    }
+    .hero__fallback strong {
+      letter-spacing: -0.055em;
+      font-size: clamp(76px, 15vw, 190px);
+      font-weight: 640;
+      line-height: 0.88;
+    }
+    .hero__video {
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+    }
+    .hero__scrim {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.36), transparent 28%),
+        linear-gradient(to top, rgba(0, 0, 0, 0.84), transparent 42%);
+    }
+    .hero__copy {
+      position: absolute;
+      z-index: 3;
+      right: max(24px, calc((100vw - 1160px) / 2));
+      bottom: 48px;
+      left: max(24px, calc((100vw - 1160px) / 2));
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 32px;
+    }
+    .hero__eyebrow, .section-kicker {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      max-width: 780px;
+      margin: 8px 0 0;
+      letter-spacing: -0.04em;
+      font-size: clamp(38px, 6vw, 78px);
+      font-weight: 640;
+      line-height: 0.98;
+    }
+    .hero__meta {
+      max-width: 330px;
+      color: rgba(245, 245, 238, 0.76);
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.55;
+      text-align: right;
+    }
+    .hero__scroll {
+      position: absolute;
+      z-index: 3;
+      bottom: 20px;
+      left: 50%;
+      color: rgba(245, 245, 238, 0.62);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      transform: translateX(-50%);
+    }
+
+    .article { padding: 72px 24px 42px; }
+    .article__layout {
+      display: grid;
+      grid-template-columns: 210px minmax(0, var(--measure)) 210px;
+      justify-content: center;
+      align-items: start;
+      column-gap: 44px;
+    }
+    .outline {
+      position: sticky;
+      top: 96px;
+      grid-column: 1;
+      max-height: calc(100vh - 120px);
+      padding-right: 8px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .outline nav {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border-left: 1px solid var(--line);
+    }
+    .outline a {
+      margin-left: -1px;
+      padding: 6px 0 6px 16px;
+      color: var(--ink-faint);
+      border-left: 2px solid transparent;
+      transition: color 140ms ease, border-color 140ms ease;
+    }
+    .outline a:hover { color: var(--ink); }
+    .outline a[aria-current="true"] {
+      color: var(--accent-ink);
+      border-left-color: var(--accent);
+      font-weight: 620;
+    }
+    .article__shell { grid-column: 2; min-width: 0; }
+    .title-block {
+      margin-bottom: 8px;
+      padding-bottom: 34px;
+      border-bottom: 1px solid var(--line);
+    }
+    .title-block h1 {
+      margin: 8px 0 0;
+      letter-spacing: -0.03em;
+      font-size: clamp(38px, 4.6vw, 52px);
+      font-weight: 640;
+      line-height: 1.04;
+    }
+    .lead {
+      margin: 20px 0 0;
+      color: var(--ink-soft);
+      font-size: 20px;
+      line-height: 1.56;
+    }
+    .title-links { margin-top: 22px; }
+    .article__shell h2 {
+      margin: 58px 0 8px;
+      letter-spacing: -0.018em;
+      font-size: 29px;
+      font-weight: 640;
+      line-height: 1.2;
+      scroll-margin-top: 92px;
+    }
+    .article__shell h3 {
+      margin: 34px 0 8px;
+      font-size: 20px;
+      font-weight: 640;
+    }
+    .article__shell p { margin: 16px 0; }
+    .heading-separator { color: var(--ink-faint); }
+    .heading-detail {
+      color: var(--ink-soft);
+      font-size: 0.63em;
+      font-weight: 500;
+      overflow-wrap: anywhere;
+    }
+
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin: 28px 0;
+      background: var(--paper-raised);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+    .stat {
+      min-width: 0;
+      padding: 18px 20px;
+      border-right: 1px solid var(--line);
+    }
+    .stat:last-child { border-right: 0; }
+    .stat strong {
+      display: block;
+      letter-spacing: -0.035em;
+      font-size: 31px;
+      font-weight: 650;
+      line-height: 1;
+    }
+    .stat span {
+      display: block;
+      margin-top: 8px;
+      color: var(--ink-faint);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin: 26px 0;
+    }
+    .score-card {
+      padding: 18px;
+      background: var(--paper-raised);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+    .score-card__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 14px;
+      font-weight: 620;
+    }
+    .score-card > strong {
+      display: block;
+      margin: 18px 0 12px;
+      letter-spacing: -0.04em;
+      font-size: 38px;
+      line-height: 1;
+    }
+    .score-card__track {
+      height: 4px;
+      overflow: hidden;
+      background: rgba(23, 23, 15, 0.1);
+      border-radius: 999px;
+    }
+    .score-card__track i {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+    }
+    .score-card small {
+      display: block;
+      margin-top: 9px;
+      color: var(--ink-faint);
+      font-family: var(--mono);
+      font-size: 10.5px;
+    }
+
+    .callout {
+      margin: 26px 0;
+      padding: 20px 22px;
+      color: var(--ink-soft);
+      background: rgba(118, 185, 0, 0.07);
+      border-left: 3px solid var(--accent);
+    }
+    .callout strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--ink);
+      font-size: 15px;
+    }
+    .callout--warn {
+      background: rgba(180, 104, 9, 0.075);
+      border-left-color: var(--warn);
+    }
+    .verdict-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin: 25px 0;
+    }
+    .verdict-card {
+      padding: 18px 19px;
+      background: var(--paper-raised);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+    .verdict-card__status {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--accent-ink);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .verdict-card--pending .verdict-card__status { color: var(--warn); }
+    .verdict-card h3 { margin: 0 0 7px; font-size: 17px; }
+    .verdict-card p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .projection-grid {
+      width: var(--wide);
+      max-width: calc(100vw - 48px);
+      margin: 26px 0 0 calc((var(--measure) - var(--wide)) / 2);
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .projection-figure {
+      min-width: 0;
+      margin: 0;
+    }
+    .projection-figure a {
+      display: block;
+      overflow: hidden;
+      background: var(--paper-raised);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+    }
+    .projection-figure img {
+      width: 100%;
+      height: auto;
+    }
+    .projection-figure figcaption {
+      margin-top: 9px;
+      color: var(--ink-faint);
+      font-size: 12.5px;
+      line-height: 1.48;
+    }
+
+    .table-wrap {
+      width: var(--wide);
+      max-width: calc(100vw - 48px);
+      margin: 24px 0 0 calc((var(--measure) - var(--wide)) / 2);
+      overflow-x: auto;
+      background: var(--paper-raised);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--ink-faint);
+      background: rgba(23, 23, 15, 0.025);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 620;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: rgba(118, 185, 0, 0.035); }
+    .summary-table td:nth-child(2),
+    .summary-table td:nth-child(4) { font-family: var(--mono); font-size: 13px; }
+    .checks-table { min-width: 860px; font-size: 13.5px; line-height: 1.48; }
+    .checks-table th:nth-child(1) { width: 100px; }
+    .checks-table th:nth-child(2) { width: 160px; }
+    .checks-table th:nth-child(3) { width: 82px; }
+    .category-label { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 2px 8px;
+      color: var(--ink);
+      background: rgba(23, 23, 15, 0.06);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 680;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .badge.pass { color: var(--accent-ink); background: rgba(118, 185, 0, 0.1); border-color: rgba(118, 185, 0, 0.36); }
+    .badge.warn { color: #8b4e00; background: rgba(180, 104, 9, 0.09); border-color: rgba(180, 104, 9, 0.32); }
+    .badge.fail, .badge.error { color: var(--fail); background: rgba(180, 35, 24, 0.08); border-color: rgba(180, 35, 24, 0.28); }
+    .badge.info { color: var(--info); background: rgba(40, 99, 166, 0.08); border-color: rgba(40, 99, 166, 0.28); }
+
+    details { margin-top: 7px; }
+    summary {
+      width: fit-content;
+      color: var(--accent-ink);
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 10.5px;
+    }
+    pre {
+      max-height: 320px;
+      margin: 9px 0 0;
+      padding: 14px;
+      overflow: auto;
+      color: #c9cbc1;
+      background: #171914;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .recording-section { padding-top: 8px; }
+    .recording-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 9px 18px;
+      color: var(--ink-soft);
+      font-size: 13.5px;
+    }
+    .recording-meta strong { color: var(--ink); font-family: var(--mono); }
+    .artifact-links { margin: 18px 0 0; }
+    .media-frame {
+      margin-top: 28px;
+      margin-bottom: 28px;
+    }
+    .media-frame--wide {
+      width: var(--wide);
+      max-width: calc(100vw - 48px);
+      margin-left: calc((var(--measure) - var(--wide)) / 2);
+    }
+    .media-frame figcaption, .snapshot-card figcaption {
+      margin-top: 10px;
+      color: var(--ink-faint);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .video-player {
+      position: relative;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+    }
+    .video-player > video {
+      width: 100%;
+      max-height: 78vh;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      object-fit: contain;
+    }
+    .video-player__bar {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 14px 12px 12px;
+      opacity: 0;
+      background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+      transition: opacity 160ms ease;
+    }
+    .video-player:hover .video-player__bar,
+    .video-player:focus-within .video-player__bar { opacity: 1; }
+    .video-control {
+      min-width: 32px;
+      height: 31px;
+      padding: 0 8px;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.48);
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      border-radius: 4px;
+      font-size: 12px;
+      line-height: 1;
+    }
+    .video-control:hover { border-color: var(--accent); }
+    .video-player__scrub {
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      flex: 1;
+      cursor: pointer;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .video-player__scrub::-webkit-slider-thumb {
+      appearance: none;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .video-player__scrub::-moz-range-thumb {
+      width: 13px;
+      height: 13px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .snapshot-card {
+      width: min(560px, 100%);
+      margin: 24px 0 30px;
+    }
+    .snapshot-card a {
+      display: block;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+    }
+    .snapshot-card img { width: 100%; height: auto; transition: transform 180ms ease; }
+    .snapshot-card a:hover img { transform: scale(1.012); }
+
+    .mobile-outline { display: none; }
+    .mobile-outline__trigger {
+      position: fixed;
+      z-index: 45;
+      right: 18px;
+      bottom: 18px;
+      height: 43px;
+      padding: 0 17px;
+      cursor: pointer;
+      background: var(--paper-raised);
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      box-shadow: 0 8px 30px rgba(23, 23, 15, 0.15);
+      font-size: 13px;
+      font-weight: 620;
+    }
+    .mobile-outline__overlay {
+      position: fixed;
+      z-index: 70;
+      inset: 0;
+      display: none;
+      background: rgba(23, 23, 15, 0.43);
+    }
+    .mobile-outline__overlay[data-open="true"] { display: block; }
+    .mobile-outline__panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(350px, 86vw);
+      padding: 24px 22px;
+      overflow-y: auto;
+      background: var(--paper);
+    }
+    .mobile-outline__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      color: var(--ink-faint);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .mobile-outline__close {
+      width: 34px;
+      height: 34px;
+      cursor: pointer;
+      background: transparent;
+      border: 0;
+      font-size: 22px;
+    }
+    .mobile-outline__links { display: flex; flex-direction: column; }
+    .mobile-outline__links a {
+      padding: 9px 0;
+      color: var(--ink-soft);
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+
+    .footer {
+      margin-top: 42px;
+      padding: 40px 24px;
+      background: var(--paper-raised);
+      border-top: 1px solid var(--line);
+    }
+    .footer__inner {
+      width: min(var(--wide), 100%);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .footer__mark { font-size: 18px; font-weight: 650; }
+    .footer__tag { color: var(--ink-faint); font-size: 13px; }
+    .footer__links { display: flex; gap: 17px; color: var(--ink-soft); font-size: 13px; }
+    .footer__links a:hover { color: var(--accent-ink); }
+
+    @media (max-width: 1260px) {
+      .article__layout { grid-template-columns: 210px minmax(0, var(--measure)); }
+      .media-frame--wide, .table-wrap, .projection-grid {
+        width: 100%;
+        margin-left: 0;
+      }
+    }
+    @media (max-width: 1040px) {
+      .article__layout { grid-template-columns: minmax(0, var(--measure)); }
+      .outline { display: none; }
+      .article__shell { grid-column: 1; }
+      .mobile-outline { display: block; }
+    }
+    @media (max-width: 720px) {
+      body { font-size: 16px; }
+      .topbar { height: 58px; padding: 0 14px; }
+      .topbar__mark { font-size: 18px; }
+      .topbar .btn { min-height: 31px; padding: 0 10px; font-size: 11.5px; }
+      .topbar__links .btn:nth-child(3) { display: none; }
+      .hero { min-height: 70svh; }
+      .hero__video { object-fit: cover; }
+      .hero__copy { right: 18px; bottom: 42px; left: 18px; display: block; }
+      .hero__meta { display: none; }
+      .hero h1 { font-size: clamp(40px, 13vw, 62px); }
+      .article { padding: 48px 18px 30px; }
+      .lead { font-size: 18px; }
+      .stats-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stat:nth-child(2) { border-right: 0; }
+      .stat:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+      .score-grid, .verdict-grid, .projection-grid { grid-template-columns: 1fr; }
+      .article__shell h2 { margin-top: 50px; font-size: 26px; }
+      .heading-detail { display: block; margin-top: 5px; font-size: 0.58em; }
+      .heading-separator { display: none; }
+      .media-frame--wide, .table-wrap, .projection-grid {
+        max-width: calc(100vw - 36px);
+      }
+      .video-player__bar { opacity: 1; }
+      .snapshot-card { width: 100%; }
+      .footer__inner { align-items: flex-start; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar" data-scrolled="false">
+    <a class="topbar__mark" href="#top">UMI <span class="accent">QA</span></a>
+    <nav class="topbar__links" aria-label="报告资源">
+      <a class="btn" href="quality_report.json">JSON</a>
+      <a class="btn" href="metrics.csv">Metrics CSV</a>
+      <a class="btn" href="RESULTS.md">审计结论</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="top" aria-label="数据质量可视化视频">
+      <div class="hero__fallback" aria-hidden="true">
+        <strong>UMI <span class="accent">QA</span></strong>
+      </div>
+      <video class='hero__video' autoplay muted loop playsinline preload='metadata' poster='snapshots/fastumi新__left_hand_250801DR48FP26001788.png' aria-hidden='true'><source src='previews/fastumi新__left_hand_250801DR48FP26001788.mp4' type='video/mp4'></video>
+      <div class="hero__scrim" aria-hidden="true"></div>
+      <div class="hero__copy">
+        <div>
+          <div class="hero__eyebrow">DATA QUALITY AUDIT · 4 DATASETS · 6 RECORDINGS</div>
+          <h1>UMI / Ego<br>数据质量报告</h1>
+        </div>
+        <div class="hero__meta">首屏样本：fastumi新 · left_hand_250801DR48FP26001788<br>
+          坐标轴和轨迹只用于检查方向与时间是否对得上</div>
+      </div>
+      <a class="hero__scroll" href="#overview">SCROLL ↓</a>
+    </section>
+
+    <section class="article">
+      <div class="article__layout">
+        <aside class="outline" aria-label="报告目录">
+          <nav>
+            <a href="#overview" aria-current="true">审计摘要</a>
+            <a href="#verdict">可用性结论</a>
+            <a href='#ego-projection'>Ego 骨架投影</a>
+            <a href="#summary">数据集汇总</a>
+            <a href='#recording-1'>ego不带tof · Ego</a><a href='#recording-2'>ego带tof · Ego</a><a href='#recording-3'>fastumi旧数据 · 左手</a><a href='#recording-4'>fastumi旧数据 · 右手</a><a href='#recording-5'>fastumi新 · 左手</a><a href='#recording-6'>fastumi新 · 右手</a>
+          </nav>
+        </aside>
+
+        <div class="mobile-outline">
+          <button class="mobile-outline__trigger" type="button" aria-expanded="false">☰ &nbsp;目录</button>
+          <div class="mobile-outline__overlay" data-open="false">
+            <nav class="mobile-outline__panel" aria-label="移动端报告目录">
+              <div class="mobile-outline__head">
+                <span>Contents</span>
+                <button class="mobile-outline__close" type="button" aria-label="关闭目录">×</button>
+              </div>
+              <div class="mobile-outline__links">
+                <a href="#overview">审计摘要</a>
+                <a href="#verdict">可用性结论</a>
+                <a href='#ego-projection'>Ego 骨架投影</a>
+                <a href="#summary">数据集汇总</a>
+                <a href='#recording-1'>ego不带tof · Ego</a><a href='#recording-2'>ego带tof · Ego</a><a href='#recording-3'>fastumi旧数据 · 左手</a><a href='#recording-4'>fastumi旧数据 · 右手</a><a href='#recording-5'>fastumi新 · 左手</a><a href='#recording-6'>fastumi新 · 右手</a>
+              </div>
+            </nav>
+          </div>
+        </div>
+
+        <article class="article__shell">
+          <header class="title-block" id="overview">
+            <div class="section-kicker">DIAGNOSTIC REPORT</div>
+            <h1>这批数据到底能不能用</h1>
+            <p class="lead">
+              我们先检查视频和传感器文件有没有坏、各路数据的时间能不能对上，再判断轨迹
+              能不能当作机器人末端位置使用。检查分越高，只代表发现的文件问题越少，
+              不代表机器人上机一定成功。
+            </p>
+            <div class="title-links">
+              <a class="btn btn--light" href="quality_report.json">完整 JSON</a>
+              <a class="btn btn--light" href="events.csv">异常事件 CSV</a>
+              <a class="btn btn--light" href="visualization_manifest.json">可视化清单</a>
+            </div>
+          </header>
+
+          <div class="stats-strip" aria-label="审计统计">
+            <div class="stat"><strong>6</strong><span>段录制</span></div>
+            <div class="stat"><strong>85</strong><span>正常检查项</span></div>
+            <div class="stat"><strong>18</strong><span>需要注意</span></div>
+            <div class="stat"><strong>0</strong><span>无法使用</span></div>
+          </div>
+
+          <div class="callout">
+            <strong>一句话结论：可以做离线研究和数据整理；训练完整 VLA 前要补任务文字。</strong>
+            六段视频都能正常读取，运动轨迹和大部分时间对齐也没有明显问题。主要缺口是：
+            部分手部帧缺失、Ego 手点的投影方式没有写清楚、
+            旧 FastUMI 交付包未提供相机内参文件、
+            FastUMI 还差一份 pose 参考点说明，
+            以及所有视频都没有“这段在做什么”的任务文字。
+          </div>
+
+          <section id="verdict">
+            <div class="section-kicker">READINESS</div>
+            <h2>这批数据现在能用到哪一步</h2>
+            <p>
+              简单说，这批数据已经记录了“设备怎么移动”，但还没有完整说明
+              “记录的是设备上的哪个点”，也没有说明“每段视频在完成什么任务”。
+            </p>
+            <div class="verdict-grid">
+              <article class="verdict-card">
+                <span class="verdict-card__status">现在可以用</span>
+                <h3>看视频、检查运动、清洗数据</h3>
+                <p>六段视频都能播放，轨迹、IMU 和夹爪数据也能读取，可以开始筛选坏帧和整理训练格式。</p>
+              </article>
+              <article class="verdict-card verdict-card--pending">
+                <span class="verdict-card__status">能看，但标定还没被供应方证明</span>
+                <h3>Ego：3D 手点能读，直接叠到视频会偏</h3>
+                <p>手腕、指根和指尖的 3D 数值都在，但按相机参数直接画会错位。新版用多帧拟合把目测中位偏差降到约 8–10 像素；这不是厂家标定，训练前仍要供应方说明手点坐标系和投影模型，并过滤没跟踪到手的帧。</p>
+              </article>
+              <article class="verdict-card verdict-card--pending">
+                <span class="verdict-card__status">购买前确认一句</span>
+                <h3>FastUMI：EEF pose 的坐标原点在哪里</h3>
+                <p>EEF pose 是泛称，原点可以放在法兰、夹爪中心（TCP）或追踪器上。运动轨迹本身可以读取和转换；只需让供应方确认 <code>merged_trajectory</code> 已经是哪一个点。如果还不是 TCP，再补一份固定变换即可。当前视频顶部标为“假设值”的 TCP 只是为了把坐标轴画出来，不能据此证明它就是真实 TCP。这是交付说明缺口，不等于数据不能用。</p>
+              </article>
+              <article class="verdict-card verdict-card--pending">
+                <span class="verdict-card__status">缺少任务说明</span>
+                <h3>没有写“这段视频在做什么”</h3>
+                <p>数据能告诉我们手和相机怎么动，却没写每段视频在做什么、最后做成功没有。只做轨迹转换不受影响；训练听懂文字指令的机器人则必须补标。</p>
+              </article>
+            </div>
+            <p class="muted">
+              真机部署提醒（不计入本批数据质量扣分）：任何示教数据放到具体机器人上，
+              都还要适配机器人模型、控制接口、速度限制和碰撞保护。这属于购买后的部署工作，
+              不是 FastUMI 这批数据独有的问题。
+            </p>
+            <div class="callout callout--warn">
+              <strong>通俗地说：目前只有“录像和运动记录”，没有“任务说明书”。</strong>
+              如果只是把轨迹转换成 EEF pose，可以继续做；如果要训练机器人听懂
+              “拿起杯子”“打开抽屉”这样的指令，就必须补文字。可以先让 VLM 看视频自动写一版，
+              再由人工检查任务名称、动作步骤和是否成功。购买前应先问供应方要原始任务清单、
+              每段任务的起止位置和成功/失败标记。
+              <details>
+                <summary>为什么确定没有任务文字？</summary>
+                <p>已扫描 126 个 TXT/CSV/JSON 文件、
+                4 个原始 RAR 的 894 个目录成员，没有找到任务说明字段；
+                7 个 MP4 中音频流 0 条、字幕流 0 条，也不能从语音或字幕恢复指令。
+                文件中的文字只是字段名、关节名、时间戳、相机参数和轨迹统计。</p>
+              </details>
+            </div>
+          </section>
+
+          <section id='ego-projection'><div class='section-kicker'>EGO PROJECTION CHECK</div><h2>Ego 骨架为什么会偏，重新投影后怎样</h2><div class='callout callout--warn'><strong>结论：主要不是把外参正反用错，而是手部 3D 点和 RGB 相机参数不共用同一套投影。</strong>旧视频直接拿物理相机的 SEUCM 参数画手点，尤其把纵向焦距用小了，所以骨架会上下偏。把现有外参正向或反向套上去，在两套 Ego 数据上都不能稳定解决问题；因此不能把 <code>extrinsic.json</code> 当成已经证明可用的“手点到 RGB”外参。</div><div class='verdict-grid'><article class='verdict-card'><span class='verdict-card__status'>目测对齐已明显改善</span><h3>ego带tof</h3><p>旧画法的中位偏差约 48.6 像素；改用手部虚拟针孔后，留出帧中位偏差约 8.3 像素，90% 的观测小于 14.3 像素。时间微调 +20 毫秒。这只说明叠图更准，不代表已经得到真实相机外参。</p><details><summary>查看拟合出的目测参数</summary><pre>{
+  &quot;fx&quot;: 393.8890645448193,
+  &quot;fy&quot;: 638.8595210545146,
+  &quot;u0&quot;: 638.0323579469904,
+  &quot;v0&quot;: 641.3214106675481,
+  &quot;width&quot;: 1280.0,
+  &quot;height&quot;: 1280.0
+}</pre></details></article><article class='verdict-card'><span class='verdict-card__status'>目测对齐已明显改善</span><h3>ego不带tof</h3><p>旧画法的中位偏差约 24.3 像素；改用手部虚拟针孔后，留出帧中位偏差约 10.2 像素，90% 的观测小于 12.1 像素。时间微调 +0 毫秒。这只说明叠图更准，不代表已经得到真实相机外参。</p><details><summary>查看拟合出的目测参数</summary><pre>{
+  &quot;fx&quot;: 396.3011880370191,
+  &quot;fy&quot;: 635.1257154787867,
+  &quot;u0&quot;: 640.7853833363511,
+  &quot;v0&quot;: 641.286685705727,
+  &quot;width&quot;: 1280.0,
+  &quot;height&quot;: 1280.0
+}</pre></details></article></div><p>新版视频使用两套数据分别拟合、并用另一半帧检查过的“手部虚拟针孔”，同时按真实 RGB 时间戳取样并插值手点。它适合人工看叠图是否跟手，但不能用于毫米级标定、三维测量或作为训练真值。</p><div class='projection-grid'><figure class='projection-figure'><a href='projection_diagnostics/ego带tof_before_after.png'><img loading='lazy' src='projection_diagnostics/ego带tof_before_after.png' alt='ego带tof 手部骨架投影前后对比'></a><figcaption>ego带tof：每行是同一时刻；左边为旧画法，中间为原始针孔，右边为新版目测校正。</figcaption></figure><figure class='projection-figure'><a href='projection_diagnostics/ego不带tof_before_after.png'><img loading='lazy' src='projection_diagnostics/ego不带tof_before_after.png' alt='ego不带tof 手部骨架投影前后对比'></a><figcaption>ego不带tof：每行是同一时刻；左边为旧画法，中间为原始针孔，右边为新版目测校正。</figcaption></figure></div><div class='title-links'><a class='btn btn--light' href='projection_diagnostics/metrics.csv'>投影误差 CSV</a><a class='btn btn--light' href='projection_diagnostics/summary.json'>完整诊断 JSON</a></div></section>
+
+          <section id="summary">
+            <div class="section-kicker">DATASET OVERVIEW</div>
+            <h2>数据集汇总</h2>
+            <div class="score-grid"><article class='score-card'><div class='score-card__head'><span>ego不带tof</span><span class='badge warn'>需注意</span></div><strong>82.0</strong><div class='score-card__track' aria-hidden='true'><i style='width:82.0%'></i></div><small>1 段录制</small></article><article class='score-card'><div class='score-card__head'><span>ego带tof</span><span class='badge warn'>需注意</span></div><strong>85.0</strong><div class='score-card__track' aria-hidden='true'><i style='width:85.0%'></i></div><small>1 段录制</small></article><article class='score-card'><div class='score-card__head'><span>fastumi旧数据</span><span class='badge warn'>需注意</span></div><strong>95.5</strong><div class='score-card__track' aria-hidden='true'><i style='width:95.5%'></i></div><small>2 段录制</small></article><article class='score-card'><div class='score-card__head'><span>fastumi新</span><span class='badge warn'>需注意</span></div><strong>94.0</strong><div class='score-card__track' aria-hidden='true'><i style='width:94.0%'></i></div><small>2 段录制</small></article></div>
+            <div class="table-wrap">
+              <table class="summary-table">
+                <thead>
+                  <tr><th>数据集</th><th>录制数量</th><th>状态</th><th>自动检查分（不是成功率）</th></tr>
+                </thead>
+                <tbody><tr><td>ego不带tof</td><td>1</td><td><span class='badge warn'>需注意</span></td><td>82.0</td></tr><tr><td>ego带tof</td><td>1</td><td><span class='badge warn'>需注意</span></td><td>85.0</td></tr><tr><td>fastumi旧数据</td><td>2</td><td><span class='badge warn'>需注意</span></td><td>95.5</td></tr><tr><td>fastumi新</td><td>2</td><td><span class='badge warn'>需注意</span></td><td>94.0</td></tr></tbody>
+              </table>
+            </div>
+            <p class="muted">总共检查 111 项：85 项正常，18 项需要注意，
+              0 项无法使用，其余只是补充说明。</p>
+          </section>
+
+          <section class='recording-section' id='recording-1'><div class='section-kicker'>RECORDING 01</div><h2>ego不带tof<span class='heading-separator'> / </span><span class='heading-detail'>ego不带tof</span></h2><div class='recording-meta'><span class='badge warn'>需注意</span><span>Ego 头戴数据</span><span><strong>82.0</strong> / 100 检查分</span></div><div class='artifact-links'><a class='btn btn--light' href='previews/ego不带tof__ego不带tof.mp4'>H.264 视频</a><a class='btn btn--light' href='snapshots/ego不带tof__ego不带tof.png'>检查快照</a></div><figure class='media-frame media-frame--wide'><div class='video-player' data-player><video playsinline preload='metadata' poster='snapshots/ego不带tof__ego不带tof.png'><source src='previews/ego不带tof__ego不带tof.mp4' type='video/mp4'>当前浏览器无法播放该视频。</video><div class='video-player__bar'><button class='video-control play' type='button' aria-label='播放视频'>▶</button><button class='video-control speed' type='button' aria-label='调整播放速度'>1×</button><input class='video-player__scrub' type='range' min='0' max='1' step='0.001' value='0' aria-label='视频播放进度'><button class='video-control expand' type='button' aria-label='全屏播放'>⛶</button></div></div><figcaption>视频上的坐标轴和轨迹用于检查方向、运动和时间是否对得上；它们不代表已经完成机器人标定。可播放、拖动进度、调速或全屏。</figcaption></figure><figure class='snapshot-card'><a href='snapshots/ego不带tof__ego不带tof.png'><img loading='lazy' src='snapshots/ego不带tof__ego不带tof.png' alt='ego不带tof__ego不带tof 质量检查快照'></a><figcaption>静态检查帧。点击可查看原始分辨率。</figcaption></figure><div class='table-wrap'><table class='checks-table'><thead><tr><th>类别</th><th>检查项</th><th>状态</th><th>结论</th></tr></thead><tbody><tr><td><span class='category-label'>视频</span></td><td>RGB 视频规格</td><td><span class='badge pass'>正常</span></td><td>视频规格为 1280x1280、60.000 帧/秒，可以正常读取<details><summary>查看专业数值</summary><pre>{
+  &quot;path&quot;: &quot;[local path omitted]&quot;,
+  &quot;codec_name&quot;: &quot;mpeg4&quot;,
+  &quot;codec_long_name&quot;: &quot;MPEG-4 part 2&quot;,
+  &quot;width&quot;: 1280,
+  &quot;height&quot;: 1280,
+  &quot;fps&quot;: 60.0,
+  &quot;nb_frames&quot;: 1561,
+  &quot;duration_s&quot;: 26.016667,
+  &quot;pix_fmt&quot;: &quot;yuv420p&quot;,
+  &quot;size_bytes&quot;: 81991576
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 视频能否完整播放</td><td><span class='badge pass'>正常</span></td><td>整段视频都能正常读取，没有发现损坏帧<details><summary>查看专业数值</summary><pre>{}</pre></details></td></tr><tr><td><span class='category-label'>时间顺序</span></td><td>RGB 时间顺序</td><td><span class='badge pass'>正常</span></td><td>时间顺序正常，没有倒退或无效时间<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 1561,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 16.657999999551976,
+  &quot;p99_dt_ms&quot;: 16.68640999916534,
+  &quot;max_dt_ms&quot;: 16.7379999984405,
+  &quot;estimated_hz&quot;: 60.031216234055435,
+  &quot;duration_s&quot;: 25.986155000000508
+}</pre></details></td></tr><tr><td><span class='category-label'>文件对应关系</span></td><td>视频帧与时间戳数量</td><td><span class='badge pass'>正常</span></td><td>视频共有 1561 帧，并且每帧都有对应的时间戳<details><summary>查看专业数值</summary><pre>{
+  &quot;video_frames&quot;: 1561,
+  &quot;timestamp_rows&quot;: 1561,
+  &quot;difference&quot;: 0
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 画面是否正常</td><td><span class='badge pass'>正常</span></td><td>抽查画面正常，没有黑屏或明显缺少细节的画面<details><summary>查看专业数值</summary><pre>{
+  &quot;sample_count&quot;: 130,
+  &quot;black_frame_fraction&quot;: 0.0,
+  &quot;low_detail_frame_fraction&quot;: 0.0,
+  &quot;static_transition_fraction&quot;: 0.0,
+  &quot;longest_static_run_s&quot;: 0.0,
+  &quot;motion_energy_p50&quot;: 5.798671722412109,
+  &quot;motion_energy_p99&quot;: 13.062661170959473
+}</pre></details></td></tr><tr><td><span class='category-label'>相机标定</span></td><td>相机内参</td><td><span class='badge warn'>需注意</span></td><td>相机参数文件能读取，但镜头模型还没用官方方法核对；当前投影只适合人工检查，不能当训练真值<details><summary>查看专业数值</summary><pre>{
+  &quot;fx&quot;: 394.09381103515625,
+  &quot;fy&quot;: 394.0301513671875,
+  &quot;cx&quot;: 640.7218017578125,
+  &quot;cy&quot;: 640.3656005859375,
+  &quot;alpha&quot;: 0.6833307147026062,
+  &quot;beta&quot;: 0.7398630380630493,
+  &quot;width&quot;: 1280.0,
+  &quot;height&quot;: 1280.0,
+  &quot;model&quot;: &quot;seucm&quot;,
+  &quot;cx_is_null&quot;: true,
+  &quot;cy_is_null&quot;: true,
+  &quot;camera_matrix_is_standard_K&quot;: false
+}</pre></details></td></tr><tr><td><span class='category-label'>相机标定</span></td><td>相机外参</td><td><span class='badge warn'>需注意</span></td><td>相机外参写成了不存在的 RGBD 数据流，元数据需要供应方修正<details><summary>查看专业数值</summary><pre>{
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;position_norm_m&quot;: 0.0253590850364429,
+  &quot;quaternion_norm_error&quot;: 5.522446167027795e-09,
+  &quot;image_topic&quot;: &quot;/xv_sdk/250801DR48FP25002649/rgbd_camera/image&quot;
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>SLAM 位姿</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 12991,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 2.0000000004074536,
+  &quot;p99_dt_ms&quot;: 2.162999999400199,
+  &quot;max_dt_ms&quot;: 12.851999999838881,
+  &quot;estimated_hz&quot;: 499.9999998981366,
+  &quot;duration_s&quot;: 26.007997000000614,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 2.55351295663786e-15,
+  &quot;quaternion_norm_error_max&quot;: 2.7755575615628914e-15,
+  &quot;linear_speed_mps_p50&quot;: 0.032701449795478496,
+  &quot;linear_speed_mps_p95&quot;: 0.10448043608568133,
+  &quot;linear_speed_mps_p99&quot;: 0.15846854318502943,
+  &quot;linear_speed_mps_max&quot;: 0.1896280929549639,
+  &quot;angular_speed_radps_p50&quot;: 0.07625553435446239,
+  &quot;angular_speed_radps_p95&quot;: 0.20314008074023504,
+  &quot;angular_speed_radps_p99&quot;: 0.25683330678305827,
+  &quot;angular_speed_radps_max&quot;: 0.3687151084567519,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 1386.8529184163274
+}</pre></details></td></tr><tr><td><span class='category-label'>IMU</span></td><td>IMU</td><td><span class='badge pass'>正常</span></td><td>IMU 的时间顺序和数值都正常<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 13165,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 1.9739999988814816,
+  &quot;p99_dt_ms&quot;: 2.011000000493368,
+  &quot;max_dt_ms&quot;: 7.905000000391738,
+  &quot;estimated_hz&quot;: 506.58561325563596,
+  &quot;duration_s&quot;: 26.007862000000387,
+  &quot;consecutive_duplicate_count&quot;: 0,
+  &quot;consecutive_duplicate_fraction&quot;: 0.0,
+  &quot;longest_duplicate_run&quot;: 0,
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;gyro_norm_radps_p01&quot;: 0.00571497246843837,
+  &quot;gyro_norm_radps_p50&quot;: 0.075602534970727,
+  &quot;gyro_norm_radps_p99&quot;: 0.25740974868433447,
+  &quot;accel_norm_mps2_p01&quot;: 9.552240758331957,
+  &quot;accel_norm_mps2_p50&quot;: 9.786185613587605,
+  &quot;accel_norm_mps2_p99&quot;: 10.016228476929227
+}</pre></details></td></tr><tr><td><span class='category-label'>手部跟踪</span></td><td>左手跟踪</td><td><span class='badge warn'>需注意</span></td><td>约 83.4% 的视频帧能及时找到手部位置；最长断档 233.0 毫秒；手部骨架总体较稳定。训练时应跳过缺失或异常帧<details><summary>查看专业数值</summary><pre>{
+  &quot;joint_file_count&quot;: 21,
+  &quot;raw_sample_to_rgb_frame_ratio&quot;: 0.2863549007046765,
+  &quot;raw_complete_sample_to_rgb_frame_ratio&quot;: 0.2863549007046765,
+  &quot;rgb_temporal_coverage_within_25ms&quot;: 0.8340807174887892,
+  &quot;duplicate_frame_id_count&quot;: 0,
+  &quot;max_joint_gap_ms&quot;: 233.00000000017462,
+  &quot;rgb_nearest_offset_p99_ms&quot;: 0.9909999989758944,
+  &quot;orthogonality_error_p99&quot;: 2.555002628314933e-07,
+  &quot;determinant_error_p99&quot;: 2.0668092252318354e-07,
+  &quot;complete_skeleton_frame_count&quot;: 447,
+  &quot;bone_length_median_m&quot;: 0.02455626912460155,
+  &quot;bone_relative_mad_p99&quot;: 0.15969583192289194,
+  &quot;projection_valid_fraction&quot;: 1.0,
+  &quot;projection_in_bounds_fraction&quot;: 1.0
+}</pre></details></td></tr><tr><td><span class='category-label'>手部跟踪</span></td><td>右手跟踪</td><td><span class='badge warn'>需注意</span></td><td>约 85.4% 的视频帧能及时找到手部位置；最长断档 100.0 毫秒，发现 84 个重复帧编号；手部骨架总体较稳定。训练时应跳过缺失或异常帧<details><summary>查看专业数值</summary><pre>{
+  &quot;joint_file_count&quot;: 21,
+  &quot;raw_sample_to_rgb_frame_ratio&quot;: 0.293401665598975,
+  &quot;raw_complete_sample_to_rgb_frame_ratio&quot;: 0.293401665598975,
+  &quot;rgb_temporal_coverage_within_25ms&quot;: 0.8539397821909033,
+  &quot;duplicate_frame_id_count&quot;: 84,
+  &quot;max_joint_gap_ms&quot;: 100.0000000003638,
+  &quot;rgb_nearest_offset_p99_ms&quot;: 0.9909999989758944,
+  &quot;orthogonality_error_p99&quot;: 2.575903945579778e-07,
+  &quot;determinant_error_p99&quot;: 2.0754829088920346e-07,
+  &quot;complete_skeleton_frame_count&quot;: 458,
+  &quot;bone_length_median_m&quot;: 0.025084006787893826,
+  &quot;bone_relative_mad_p99&quot;: 0.24389205553352103,
+  &quot;projection_valid_fraction&quot;: 1.0,
+  &quot;projection_in_bounds_fraction&quot;: 1.0
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与SLAM 位姿对时</td><td><span class='badge pass'>正常</span></td><td>视频与SLAM 位姿对时良好：约 99% 的时间误差不超过 1.00 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.503999999637017,
+  &quot;p95_ms&quot;: 0.954999999521533,
+  &quot;p99_ms&quot;: 1.0016000000177885,
+  &quot;max_ms&quot;: 27.22600000015518
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与IMU对时</td><td><span class='badge pass'>正常</span></td><td>视频与IMU对时良好：约 99% 的时间误差不超过 0.98 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.49700000090524554,
+  &quot;p95_ms&quot;: 0.941999998758547,
+  &quot;p99_ms&quot;: 0.9814000004553236,
+  &quot;max_ms&quot;: 27.5629999996454
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与左手对时</td><td><span class='badge warn'>需注意</span></td><td>视频与左手有些对不齐：最差约 1% 的时间误差达到 50.54 毫秒，超过 31.25 毫秒门槛；训练时要屏蔽对不上的帧<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 16.4230000009411,
+  &quot;p95_ms&quot;: 33.18600000056904,
+  &quot;p99_ms&quot;: 50.538199999573415,
+  &quot;max_ms&quot;: 115.81100000148581
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与右手对时</td><td><span class='badge warn'>需注意</span></td><td>视频与右手有些对不齐：最差约 1% 的时间误差达到 33.55 毫秒，超过 31.25 毫秒门槛；训练时要屏蔽对不上的帧<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 16.39200000136043,
+  &quot;p95_ms&quot;: 33.05699999873468,
+  &quot;p99_ms&quot;: 33.55320000046049,
+  &quot;max_ms&quot;: 49.84899999908521
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>画面与轨迹是否同步</td><td><span class='badge info'>补充说明</span></td><td>画面动作和轨迹变化大致对得上；这只能排查整段错位，不能证明逐帧完全同步<details><summary>查看专业数值</summary><pre>{
+  &quot;max_correlation&quot;: 0.7148324058096267,
+  &quot;best_lag_samples&quot;: 0,
+  &quot;best_lag_ms&quot;: 0.0,
+  &quot;sample_count&quot;: 129
+}</pre></details></td></tr></tbody></table></div></section><section class='recording-section' id='recording-2'><div class='section-kicker'>RECORDING 02</div><h2>ego带tof<span class='heading-separator'> / </span><span class='heading-detail'>ego带tof</span></h2><div class='recording-meta'><span class='badge warn'>需注意</span><span>Ego 头戴数据</span><span><strong>85.0</strong> / 100 检查分</span></div><div class='artifact-links'><a class='btn btn--light' href='previews/ego带tof__ego带tof.mp4'>H.264 视频</a><a class='btn btn--light' href='snapshots/ego带tof__ego带tof.png'>检查快照</a></div><figure class='media-frame media-frame--wide'><div class='video-player' data-player><video playsinline preload='metadata' poster='snapshots/ego带tof__ego带tof.png'><source src='previews/ego带tof__ego带tof.mp4' type='video/mp4'>当前浏览器无法播放该视频。</video><div class='video-player__bar'><button class='video-control play' type='button' aria-label='播放视频'>▶</button><button class='video-control speed' type='button' aria-label='调整播放速度'>1×</button><input class='video-player__scrub' type='range' min='0' max='1' step='0.001' value='0' aria-label='视频播放进度'><button class='video-control expand' type='button' aria-label='全屏播放'>⛶</button></div></div><figcaption>视频上的坐标轴和轨迹用于检查方向、运动和时间是否对得上；它们不代表已经完成机器人标定。可播放、拖动进度、调速或全屏。</figcaption></figure><figure class='snapshot-card'><a href='snapshots/ego带tof__ego带tof.png'><img loading='lazy' src='snapshots/ego带tof__ego带tof.png' alt='ego带tof__ego带tof 质量检查快照'></a><figcaption>静态检查帧。点击可查看原始分辨率。</figcaption></figure><div class='table-wrap'><table class='checks-table'><thead><tr><th>类别</th><th>检查项</th><th>状态</th><th>结论</th></tr></thead><tbody><tr><td><span class='category-label'>视频</span></td><td>RGB 视频规格</td><td><span class='badge pass'>正常</span></td><td>视频规格为 1280x1280、60.000 帧/秒，可以正常读取<details><summary>查看专业数值</summary><pre>{
+  &quot;path&quot;: &quot;[local path omitted]&quot;,
+  &quot;codec_name&quot;: &quot;mpeg4&quot;,
+  &quot;codec_long_name&quot;: &quot;MPEG-4 part 2&quot;,
+  &quot;width&quot;: 1280,
+  &quot;height&quot;: 1280,
+  &quot;fps&quot;: 60.0,
+  &quot;nb_frames&quot;: 1441,
+  &quot;duration_s&quot;: 24.016667,
+  &quot;pix_fmt&quot;: &quot;yuv420p&quot;,
+  &quot;size_bytes&quot;: 84919946
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 视频能否完整播放</td><td><span class='badge pass'>正常</span></td><td>整段视频都能正常读取，没有发现损坏帧<details><summary>查看专业数值</summary><pre>{}</pre></details></td></tr><tr><td><span class='category-label'>时间顺序</span></td><td>RGB 时间顺序</td><td><span class='badge pass'>正常</span></td><td>时间顺序正常，没有倒退或无效时间<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 1441,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 16.65800000046147,
+  &quot;p99_dt_ms&quot;: 16.710000002094603,
+  &quot;max_dt_ms&quot;: 16.811000001325738,
+  &quot;estimated_hz&quot;: 60.031216230777844,
+  &quot;duration_s&quot;: 23.98763400000098
+}</pre></details></td></tr><tr><td><span class='category-label'>文件对应关系</span></td><td>视频帧与时间戳数量</td><td><span class='badge pass'>正常</span></td><td>视频共有 1441 帧，并且每帧都有对应的时间戳<details><summary>查看专业数值</summary><pre>{
+  &quot;video_frames&quot;: 1441,
+  &quot;timestamp_rows&quot;: 1441,
+  &quot;difference&quot;: 0
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 画面是否正常</td><td><span class='badge pass'>正常</span></td><td>抽查画面正常，没有黑屏或明显缺少细节的画面<details><summary>查看专业数值</summary><pre>{
+  &quot;sample_count&quot;: 120,
+  &quot;black_frame_fraction&quot;: 0.0,
+  &quot;low_detail_frame_fraction&quot;: 0.0,
+  &quot;static_transition_fraction&quot;: 0.0,
+  &quot;longest_static_run_s&quot;: 0.0,
+  &quot;motion_energy_p50&quot;: 4.127968788146973,
+  &quot;motion_energy_p99&quot;: 12.127440452575684
+}</pre></details></td></tr><tr><td><span class='category-label'>相机标定</span></td><td>相机内参</td><td><span class='badge warn'>需注意</span></td><td>相机参数文件能读取，但镜头模型还没用官方方法核对；当前投影只适合人工检查，不能当训练真值<details><summary>查看专业数值</summary><pre>{
+  &quot;fx&quot;: 393.3944091796875,
+  &quot;fy&quot;: 393.3370056152344,
+  &quot;cx&quot;: 638.4927368164062,
+  &quot;cy&quot;: 642.093994140625,
+  &quot;alpha&quot;: 0.6793699264526367,
+  &quot;beta&quot;: 0.7491185665130615,
+  &quot;width&quot;: 1280.0,
+  &quot;height&quot;: 1280.0,
+  &quot;model&quot;: &quot;seucm&quot;,
+  &quot;cx_is_null&quot;: true,
+  &quot;cy_is_null&quot;: true,
+  &quot;camera_matrix_is_standard_K&quot;: false
+}</pre></details></td></tr><tr><td><span class='category-label'>相机标定</span></td><td>相机外参</td><td><span class='badge pass'>正常</span></td><td>相机外参文件能正常读取；但文件能读不代表精度已经实测确认<details><summary>查看专业数值</summary><pre>{
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;position_norm_m&quot;: 0.025382456243272043,
+  &quot;quaternion_norm_error&quot;: 8.913139115662716e-10,
+  &quot;image_topic&quot;: &quot;/xv_sdk/250801DR48FP25002071/rgbd_camera/image&quot;
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>SLAM 位姿</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 12003,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 2.0000000004074536,
+  &quot;p99_dt_ms&quot;: 2.1809899998334,
+  &quot;max_dt_ms&quot;: 7.76199999745586,
+  &quot;estimated_hz&quot;: 499.9999998981366,
+  &quot;duration_s&quot;: 24.00800000000163,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 9.325873406851315e-14,
+  &quot;quaternion_norm_error_max&quot;: 9.370282327836321e-14,
+  &quot;linear_speed_mps_p50&quot;: 0.013809302679549513,
+  &quot;linear_speed_mps_p95&quot;: 0.04166965432240082,
+  &quot;linear_speed_mps_p99&quot;: 0.04907298227116604,
+  &quot;linear_speed_mps_max&quot;: 0.058283543026700683,
+  &quot;angular_speed_radps_p50&quot;: 0.04688365791160935,
+  &quot;angular_speed_radps_p95&quot;: 0.13499149203313657,
+  &quot;angular_speed_radps_p99&quot;: 0.17548510287726482,
+  &quot;angular_speed_radps_max&quot;: 0.2681775013907259,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 136.85108163813726
+}</pre></details></td></tr><tr><td><span class='category-label'>IMU</span></td><td>IMU</td><td><span class='badge pass'>正常</span></td><td>IMU 的时间顺序和数值都正常<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 12140,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 1.975999999558553,
+  &quot;p99_dt_ms&quot;: 2.012000000831904,
+  &quot;max_dt_ms&quot;: 5.930999999691267,
+  &quot;estimated_hz&quot;: 506.072874606986,
+  &quot;duration_s&quot;: 24.008201000000554,
+  &quot;consecutive_duplicate_count&quot;: 0,
+  &quot;consecutive_duplicate_fraction&quot;: 0.0,
+  &quot;longest_duplicate_run&quot;: 0,
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;gyro_norm_radps_p01&quot;: 0.007492342160026746,
+  &quot;gyro_norm_radps_p50&quot;: 0.045557487808510946,
+  &quot;gyro_norm_radps_p99&quot;: 0.17191167311346423,
+  &quot;accel_norm_mps2_p01&quot;: 9.515869352376304,
+  &quot;accel_norm_mps2_p50&quot;: 9.81605400502368,
+  &quot;accel_norm_mps2_p99&quot;: 10.09791773826646
+}</pre></details></td></tr><tr><td><span class='category-label'>手部跟踪</span></td><td>左手跟踪</td><td><span class='badge warn'>需注意</span></td><td>约 83.0% 的视频帧能及时找到手部位置；最长断档 150.0 毫秒；手部骨架总体较稳定。训练时应跳过缺失或异常帧<details><summary>查看专业数值</summary><pre>{
+  &quot;joint_file_count&quot;: 21,
+  &quot;raw_sample_to_rgb_frame_ratio&quot;: 0.28452463566967384,
+  &quot;raw_complete_sample_to_rgb_frame_ratio&quot;: 0.28452463566967384,
+  &quot;rgb_temporal_coverage_within_25ms&quot;: 0.8299791811242193,
+  &quot;duplicate_frame_id_count&quot;: 0,
+  &quot;max_joint_gap_ms&quot;: 150.0000000014552,
+  &quot;rgb_nearest_offset_p99_ms&quot;: 0.9890000001178123,
+  &quot;orthogonality_error_p99&quot;: 2.520346190633128e-07,
+  &quot;determinant_error_p99&quot;: 2.0472925406078692e-07,
+  &quot;complete_skeleton_frame_count&quot;: 410,
+  &quot;bone_length_median_m&quot;: 0.024669780313963482,
+  &quot;bone_relative_mad_p99&quot;: 0.08318362842390241,
+  &quot;projection_valid_fraction&quot;: 1.0,
+  &quot;projection_in_bounds_fraction&quot;: 1.0
+}</pre></details></td></tr><tr><td><span class='category-label'>手部跟踪</span></td><td>右手跟踪</td><td><span class='badge warn'>需注意</span></td><td>约 85.4% 的视频帧能及时找到手部位置；最长断档 116.0 毫秒，发现 252 个重复帧编号；部分帧的手部骨架明显变形。训练时应跳过缺失或异常帧<details><summary>查看专业数值</summary><pre>{
+  &quot;joint_file_count&quot;: 21,
+  &quot;raw_sample_to_rgb_frame_ratio&quot;: 0.29285218598195695,
+  &quot;raw_complete_sample_to_rgb_frame_ratio&quot;: 0.29285218598195695,
+  &quot;rgb_temporal_coverage_within_25ms&quot;: 0.8535739070090215,
+  &quot;duplicate_frame_id_count&quot;: 252,
+  &quot;max_joint_gap_ms&quot;: 115.99999999816646,
+  &quot;rgb_nearest_offset_p99_ms&quot;: 0.994999998511048,
+  &quot;orthogonality_error_p99&quot;: 2.5834613757299714e-07,
+  &quot;determinant_error_p99&quot;: 2.091228746547991e-07,
+  &quot;complete_skeleton_frame_count&quot;: 422,
+  &quot;bone_length_median_m&quot;: 0.02208251605774997,
+  &quot;bone_relative_mad_p99&quot;: 0.5543262948085278,
+  &quot;projection_valid_fraction&quot;: 1.0,
+  &quot;projection_in_bounds_fraction&quot;: 1.0
+}</pre></details></td></tr><tr><td><span class='category-label'>时间顺序</span></td><td>ToF 时间顺序</td><td><span class='badge pass'>正常</span></td><td>时间顺序正常，没有倒退或无效时间<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 720,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 33.329999998386484,
+  &quot;p99_dt_ms&quot;: 33.36699999999837,
+  &quot;max_dt_ms&quot;: 33.47800000119605,
+  &quot;estimated_hz&quot;: 30.00300030148246,
+  &quot;duration_s&quot;: 23.964617999998154
+}</pre></details></td></tr><tr><td><span class='category-label'>深度</span></td><td>ToF 深度图</td><td><span class='badge pass'>正常</span></td><td>720 张深度图都找到了，其中 95.5% 的像素有有效深度；文件夹虽然叫 PointClouds，里面实际是二维深度图<details><summary>查看专业数值</summary><pre>{
+  &quot;timestamp_rows&quot;: 720,
+  &quot;referenced_files&quot;: 720,
+  &quot;missing_referenced_files&quot;: 0,
+  &quot;sampled_files&quot;: 200,
+  &quot;load_error_count&quot;: 0,
+  &quot;shapes&quot;: {
+    &quot;(240, 320)&quot;: 200
+  },
+  &quot;dtypes&quot;: {
+    &quot;float32&quot;: 200
+  },
+  &quot;finite_fraction&quot;: 0.9553029296875,
+  &quot;positive_fraction_of_finite&quot;: 1.0,
+  &quot;depth_m_p01&quot;: 0.3400000035762787,
+  &quot;depth_m_p50&quot;: 0.6029999852180481,
+  &quot;depth_m_p99&quot;: 1.059999942779541
+}</pre></details></td></tr><tr><td><span class='category-label'>时间顺序</span></td><td>RGBD 时间顺序</td><td><span class='badge pass'>正常</span></td><td>时间顺序正常，没有倒退或无效时间<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 720,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 33.329999998386484,
+  &quot;p99_dt_ms&quot;: 33.36699999999837,
+  &quot;max_dt_ms&quot;: 33.47800000119605,
+  &quot;estimated_hz&quot;: 30.00300030148246,
+  &quot;duration_s&quot;: 23.964617999998154
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGBD 视频</td><td><span class='badge pass'>正常</span></td><td>RGBD 视频规格为 640x240，帧数与时间戳完全一致<details><summary>查看专业数值</summary><pre>{
+  &quot;path&quot;: &quot;[local path omitted]&quot;,
+  &quot;codec_name&quot;: &quot;mpeg4&quot;,
+  &quot;codec_long_name&quot;: &quot;MPEG-4 part 2&quot;,
+  &quot;width&quot;: 640,
+  &quot;height&quot;: 240,
+  &quot;fps&quot;: 30.0,
+  &quot;nb_frames&quot;: 720,
+  &quot;duration_s&quot;: 24.0,
+  &quot;pix_fmt&quot;: &quot;yuv420p&quot;,
+  &quot;size_bytes&quot;: 7814042,
+  &quot;frame_count_difference&quot;: 0
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGBD 视频能否完整播放</td><td><span class='badge pass'>正常</span></td><td>整段视频都能正常读取，没有发现损坏帧<details><summary>查看专业数值</summary><pre>{}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与SLAM 位姿对时</td><td><span class='badge pass'>正常</span></td><td>视频与SLAM 位姿对时良好：约 99% 的时间误差不超过 1.01 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.4910000025120098,
+  &quot;p95_ms&quot;: 0.9539999991829973,
+  &quot;p99_ms&quot;: 1.0089999996125698,
+  &quot;max_ms&quot;: 28.18499999921187
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与IMU对时</td><td><span class='badge pass'>正常</span></td><td>视频与IMU对时良好：约 99% 的时间误差不超过 0.98 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.49699999726726674,
+  &quot;p95_ms&quot;: 0.9429999990970828,
+  &quot;p99_ms&quot;: 0.984199999948032,
+  &quot;max_ms&quot;: 29.439000001730165
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与左手对时</td><td><span class='badge warn'>需注意</span></td><td>视频与左手有些对不齐：最差约 1% 的时间误差达到 50.00 毫秒，超过 31.25 毫秒门槛；训练时要屏蔽对不上的帧<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 16.419999999925494,
+  &quot;p95_ms&quot;: 33.29900000244379,
+  &quot;p99_ms&quot;: 50.004600000102066,
+  &quot;max_ms&quot;: 67.30600000082632
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与右手对时</td><td><span class='badge warn'>需注意</span></td><td>视频与右手有些对不齐：最差约 1% 的时间误差达到 34.06 毫秒，超过 31.25 毫秒门槛；训练时要屏蔽对不上的帧<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 16.357000000425614,
+  &quot;p95_ms&quot;: 33.106999999290565,
+  &quot;p99_ms&quot;: 34.05919999931939,
+  &quot;max_ms&quot;: 50.08399999860558
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与RGBD对时</td><td><span class='badge pass'>正常</span></td><td>视频与RGBD对时良好：约 99% 的时间误差不超过 16.06 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 8.323999998538056,
+  &quot;p95_ms&quot;: 15.235999999276828,
+  &quot;p99_ms&quot;: 16.056400000525173,
+  &quot;max_ms&quot;: 22.6070000026084
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与ToF对时</td><td><span class='badge pass'>正常</span></td><td>视频与ToF对时良好：约 99% 的时间误差不超过 16.06 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 8.323999998538056,
+  &quot;p95_ms&quot;: 15.235999999276828,
+  &quot;p99_ms&quot;: 16.056400000525173,
+  &quot;max_ms&quot;: 22.6070000026084
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>画面与轨迹是否同步</td><td><span class='badge info'>补充说明</span></td><td>画面动作和轨迹变化大致对得上；这只能排查整段错位，不能证明逐帧完全同步<details><summary>查看专业数值</summary><pre>{
+  &quot;max_correlation&quot;: 0.7636912731768584,
+  &quot;best_lag_samples&quot;: 0,
+  &quot;best_lag_ms&quot;: 0.0,
+  &quot;sample_count&quot;: 119
+}</pre></details></td></tr></tbody></table></div></section><section class='recording-section' id='recording-3'><div class='section-kicker'>RECORDING 03</div><h2>fastumi旧数据<span class='heading-separator'> / </span><span class='heading-detail'>left_hand_250801DR48FP26001748</span></h2><div class='recording-meta'><span class='badge warn'>需注意</span><span>FastUMI 手持数据</span><span><strong>97.0</strong> / 100 检查分</span></div><div class='artifact-links'><a class='btn btn--light' href='previews/fastumi旧数据__left_hand_250801DR48FP26001748.mp4'>H.264 视频</a><a class='btn btn--light' href='snapshots/fastumi旧数据__left_hand_250801DR48FP26001748.png'>检查快照</a></div><figure class='media-frame media-frame--wide'><div class='video-player' data-player><video playsinline preload='metadata' poster='snapshots/fastumi旧数据__left_hand_250801DR48FP26001748.png'><source src='previews/fastumi旧数据__left_hand_250801DR48FP26001748.mp4' type='video/mp4'>当前浏览器无法播放该视频。</video><div class='video-player__bar'><button class='video-control play' type='button' aria-label='播放视频'>▶</button><button class='video-control speed' type='button' aria-label='调整播放速度'>1×</button><input class='video-player__scrub' type='range' min='0' max='1' step='0.001' value='0' aria-label='视频播放进度'><button class='video-control expand' type='button' aria-label='全屏播放'>⛶</button></div></div><figcaption>本视频之所以能画出 TCP，是因为临时假设了 <code>pose→TCP=(0.00, 0.13, 0.10) m</code>、<code>RPY=(0.0, 0.0, 0.0)°</code>。它只用于检查运动方向；能画出来不代表这就是真实 TCP。供应方给出真实固定变换后应替换该假设。</figcaption></figure><figure class='snapshot-card'><a href='snapshots/fastumi旧数据__left_hand_250801DR48FP26001748.png'><img loading='lazy' src='snapshots/fastumi旧数据__left_hand_250801DR48FP26001748.png' alt='fastumi旧数据__left_hand_250801DR48FP26001748 质量检查快照'></a><figcaption>静态检查帧。点击可查看原始分辨率。</figcaption></figure><div class='table-wrap'><table class='checks-table'><thead><tr><th>类别</th><th>检查项</th><th>状态</th><th>结论</th></tr></thead><tbody><tr><td><span class='category-label'>视频</span></td><td>RGB 视频规格</td><td><span class='badge pass'>正常</span></td><td>视频规格为 1280x1280、60.000 帧/秒，可以正常读取<details><summary>查看专业数值</summary><pre>{
+  &quot;path&quot;: &quot;[local path omitted]&quot;,
+  &quot;codec_name&quot;: &quot;mpeg4&quot;,
+  &quot;codec_long_name&quot;: &quot;MPEG-4 part 2&quot;,
+  &quot;width&quot;: 1280,
+  &quot;height&quot;: 1280,
+  &quot;fps&quot;: 60.0,
+  &quot;nb_frames&quot;: 1506,
+  &quot;duration_s&quot;: 25.1,
+  &quot;pix_fmt&quot;: &quot;yuv420p&quot;,
+  &quot;size_bytes&quot;: 102351118
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 视频能否完整播放</td><td><span class='badge pass'>正常</span></td><td>整段视频都能正常读取，没有发现损坏帧<details><summary>查看专业数值</summary><pre>{}</pre></details></td></tr><tr><td><span class='category-label'>时间顺序</span></td><td>RGB 时间顺序</td><td><span class='badge pass'>正常</span></td><td>时间顺序正常，没有倒退或无效时间<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 1506,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 16.65800000046147,
+  &quot;p99_dt_ms&quot;: 16.686919995991047,
+  &quot;max_dt_ms&quot;: 16.777999997430015,
+  &quot;estimated_hz&quot;: 60.031216230777844,
+  &quot;duration_s&quot;: 25.070410000000265
+}</pre></details></td></tr><tr><td><span class='category-label'>文件对应关系</span></td><td>视频帧与时间戳数量</td><td><span class='badge pass'>正常</span></td><td>视频共有 1506 帧，并且每帧都有对应的时间戳<details><summary>查看专业数值</summary><pre>{
+  &quot;video_frames&quot;: 1506,
+  &quot;timestamp_rows&quot;: 1506,
+  &quot;difference&quot;: 0
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 画面是否正常</td><td><span class='badge pass'>正常</span></td><td>抽查画面正常，没有黑屏或明显缺少细节的画面<details><summary>查看专业数值</summary><pre>{
+  &quot;sample_count&quot;: 126,
+  &quot;black_frame_fraction&quot;: 0.0,
+  &quot;low_detail_frame_fraction&quot;: 0.0,
+  &quot;static_transition_fraction&quot;: 0.0,
+  &quot;longest_static_run_s&quot;: 0.0,
+  &quot;motion_energy_p50&quot;: 6.303789138793945,
+  &quot;motion_energy_p99&quot;: 23.24247169494629
+}</pre></details></td></tr><tr><td><span class='category-label'>相机标定</span></td><td>相机内参</td><td><span class='badge warn'>需注意</span></td><td>本次交付文件中未提供相机内参，因此无法可靠地把三维轨迹画回视频；当前借用其他设备参数生成的画面只供查看<details><summary>查看专业数值</summary><pre>{}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>原始 SLAM 轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 13030,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 2.0000000004074536,
+  &quot;p99_dt_ms&quot;: 2.195720001182053,
+  &quot;max_dt_ms&quot;: 7.391999999526888,
+  &quot;estimated_hz&quot;: 499.9999998981366,
+  &quot;duration_s&quot;: 26.076003000001947,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 3.641166257395412e-12,
+  &quot;quaternion_norm_error_max&quot;: 3.643751966819764e-12,
+  &quot;linear_speed_mps_p50&quot;: 0.04001807885439277,
+  &quot;linear_speed_mps_p95&quot;: 0.14142087579759768,
+  &quot;linear_speed_mps_p99&quot;: 0.17778522369511124,
+  &quot;linear_speed_mps_max&quot;: 0.30581715271076165,
+  &quot;angular_speed_radps_p50&quot;: 0.10843423236630693,
+  &quot;angular_speed_radps_p95&quot;: 0.4650779615071194,
+  &quot;angular_speed_radps_p99&quot;: 0.7262743253795202,
+  &quot;angular_speed_radps_max&quot;: 1.0356123909303134,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 236.4227386779422
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>处理后 SLAM 轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 13030,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 2.0000000004074536,
+  &quot;p99_dt_ms&quot;: 2.195720001182053,
+  &quot;max_dt_ms&quot;: 7.391999999526888,
+  &quot;estimated_hz&quot;: 499.9999998981366,
+  &quot;duration_s&quot;: 26.076003000001947,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 1.1102230246251565e-16,
+  &quot;quaternion_norm_error_max&quot;: 2.220446049250313e-16,
+  &quot;linear_speed_mps_p50&quot;: 0.04098028789211104,
+  &quot;linear_speed_mps_p95&quot;: 0.13437419308584744,
+  &quot;linear_speed_mps_p99&quot;: 0.16948024280681726,
+  &quot;linear_speed_mps_max&quot;: 0.3166614867941289,
+  &quot;angular_speed_radps_p50&quot;: 0.10843423236630693,
+  &quot;angular_speed_radps_p95&quot;: 0.4650779614115935,
+  &quot;angular_speed_radps_p99&quot;: 0.7262743254226286,
+  &quot;angular_speed_radps_max&quot;: 1.0356123909303134,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 236.4227386779484
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>融合轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 2507,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 9.99856000271393,
+  &quot;p99_dt_ms&quot;: 10.407376651346565,
+  &quot;max_dt_ms&quot;: 11.610746005317196,
+  &quot;estimated_hz&quot;: 100.01440204675153,
+  &quot;duration_s&quot;: 25.060263394996582,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 1.1102230246251565e-16,
+  &quot;quaternion_norm_error_max&quot;: 1.1102230246251565e-16,
+  &quot;linear_speed_mps_p50&quot;: 0.0406178755025928,
+  &quot;linear_speed_mps_p95&quot;: 0.13345783782177165,
+  &quot;linear_speed_mps_p99&quot;: 0.16998969625295693,
+  &quot;linear_speed_mps_max&quot;: 0.2093702261570367,
+  &quot;angular_speed_radps_p50&quot;: 0.11364379888858048,
+  &quot;angular_speed_radps_p95&quot;: 0.46912194203361374,
+  &quot;angular_speed_radps_p99&quot;: 0.7174055574341597,
+  &quot;angular_speed_radps_max&quot;: 1.0745526895522621,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 109.3101402797432
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>融合轨迹是否完整</td><td><span class='badge pass'>正常</span></td><td>融合轨迹共有 2507 个点，没有跳过或匹配失败<details><summary>查看专业数值</summary><pre>{
+  &quot;total_merged&quot;: 2507,
+  &quot;averaged&quot;: 2507,
+  &quot;use_slam&quot;: 0,
+  &quot;use_vive&quot;: 0,
+  &quot;both_high&quot;: 0,
+  &quot;skipped&quot;: 0,
+  &quot;no_match&quot;: 0,
+  &quot;velocity_threshold_mps&quot;: 1.0,
+  &quot;matching_tolerance_s&quot;: 0.01,
+  &quot;trajectory_row_count&quot;: 2507
+}</pre></details></td></tr><tr><td><span class='category-label'>IMU</span></td><td>IMU</td><td><span class='badge info'>补充说明</span></td><td>这段没有 IMU；模型不用 IMU 时不影响，否则会少一种输入<details><summary>查看专业数值</summary><pre>{}</pre></details></td></tr><tr><td><span class='category-label'>夹爪信号</span></td><td>夹爪开度</td><td><span class='badge pass'>正常</span></td><td>时间顺序正常，没有倒退或无效时间<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 5015,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 4.999999997380655,
+  &quot;p99_dt_ms&quot;: 5.01300000178162,
+  &quot;max_dt_ms&quot;: 5.091999999422114,
+  &quot;estimated_hz&quot;: 200.0000001047738,
+  &quot;duration_s&quot;: 25.070384999999078,
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;consecutive_duplicate_count&quot;: 79,
+  &quot;consecutive_duplicate_fraction&quot;: 0.015755883526126845,
+  &quot;longest_duplicate_run&quot;: 2,
+  &quot;value_0_p01&quot;: 0.9662851747376803,
+  &quot;value_0_p50&quot;: 87.37431700289063,
+  &quot;value_0_p99&quot;: 87.41824850748318
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与原始 SLAM 轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与原始 SLAM 轨迹对时良好：约 99% 的时间误差不超过 1.01 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.5049999999755528,
+  &quot;p95_ms&quot;: 0.9507500017207349,
+  &quot;p99_ms&quot;: 1.007799999570125,
+  &quot;max_ms&quot;: 37.83199999452336
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与处理后 SLAM 轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与处理后 SLAM 轨迹对时良好：约 99% 的时间误差不超过 1.01 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.5049999999755528,
+  &quot;p95_ms&quot;: 0.9507500017207349,
+  &quot;p99_ms&quot;: 1.007799999570125,
+  &quot;max_ms&quot;: 37.83199999452336
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与融合轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与融合轨迹对时良好：约 99% 的时间误差不超过 4.95 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 2.518004497687798,
+  &quot;p95_ms&quot;: 4.745063250084058,
+  &quot;p99_ms&quot;: 4.9536178546986775,
+  &quot;max_ms&quot;: 37.83192599803442
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与夹爪开度对时</td><td><span class='badge pass'>正常</span></td><td>视频与夹爪开度对时良好：约 99% 的时间误差不超过 2.48 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 1.2499999975261744,
+  &quot;p95_ms&quot;: 2.3787499994796235,
+  &quot;p99_ms&quot;: 2.480999995896127,
+  &quot;max_ms&quot;: 32.811999997647945
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>画面与轨迹是否同步</td><td><span class='badge info'>补充说明</span></td><td>画面动作和轨迹变化大致对得上；这只能排查整段错位，不能证明逐帧完全同步<details><summary>查看专业数值</summary><pre>{
+  &quot;max_correlation&quot;: 0.723646852571018,
+  &quot;best_lag_samples&quot;: 0,
+  &quot;best_lag_ms&quot;: 0.0,
+  &quot;sample_count&quot;: 125
+}</pre></details></td></tr></tbody></table></div></section><section class='recording-section' id='recording-4'><div class='section-kicker'>RECORDING 04</div><h2>fastumi旧数据<span class='heading-separator'> / </span><span class='heading-detail'>right_hand_250801DR48FP26001744</span></h2><div class='recording-meta'><span class='badge warn'>需注意</span><span>FastUMI 手持数据</span><span><strong>94.0</strong> / 100 检查分</span></div><div class='artifact-links'><a class='btn btn--light' href='previews/fastumi旧数据__right_hand_250801DR48FP26001744.mp4'>H.264 视频</a><a class='btn btn--light' href='snapshots/fastumi旧数据__right_hand_250801DR48FP26001744.png'>检查快照</a></div><figure class='media-frame media-frame--wide'><div class='video-player' data-player><video playsinline preload='metadata' poster='snapshots/fastumi旧数据__right_hand_250801DR48FP26001744.png'><source src='previews/fastumi旧数据__right_hand_250801DR48FP26001744.mp4' type='video/mp4'>当前浏览器无法播放该视频。</video><div class='video-player__bar'><button class='video-control play' type='button' aria-label='播放视频'>▶</button><button class='video-control speed' type='button' aria-label='调整播放速度'>1×</button><input class='video-player__scrub' type='range' min='0' max='1' step='0.001' value='0' aria-label='视频播放进度'><button class='video-control expand' type='button' aria-label='全屏播放'>⛶</button></div></div><figcaption>本视频之所以能画出 TCP，是因为临时假设了 <code>pose→TCP=(0.00, 0.13, 0.10) m</code>、<code>RPY=(0.0, 0.0, 0.0)°</code>。它只用于检查运动方向；能画出来不代表这就是真实 TCP。供应方给出真实固定变换后应替换该假设。</figcaption></figure><figure class='snapshot-card'><a href='snapshots/fastumi旧数据__right_hand_250801DR48FP26001744.png'><img loading='lazy' src='snapshots/fastumi旧数据__right_hand_250801DR48FP26001744.png' alt='fastumi旧数据__right_hand_250801DR48FP26001744 质量检查快照'></a><figcaption>静态检查帧。点击可查看原始分辨率。</figcaption></figure><div class='table-wrap'><table class='checks-table'><thead><tr><th>类别</th><th>检查项</th><th>状态</th><th>结论</th></tr></thead><tbody><tr><td><span class='category-label'>视频</span></td><td>RGB 视频规格</td><td><span class='badge pass'>正常</span></td><td>视频规格为 1280x1280、60.000 帧/秒，可以正常读取<details><summary>查看专业数值</summary><pre>{
+  &quot;path&quot;: &quot;[local path omitted]&quot;,
+  &quot;codec_name&quot;: &quot;mpeg4&quot;,
+  &quot;codec_long_name&quot;: &quot;MPEG-4 part 2&quot;,
+  &quot;width&quot;: 1280,
+  &quot;height&quot;: 1280,
+  &quot;fps&quot;: 60.0,
+  &quot;nb_frames&quot;: 1505,
+  &quot;duration_s&quot;: 25.083333,
+  &quot;pix_fmt&quot;: &quot;yuv420p&quot;,
+  &quot;size_bytes&quot;: 93951466
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 视频能否完整播放</td><td><span class='badge pass'>正常</span></td><td>整段视频都能正常读取，没有发现损坏帧<details><summary>查看专业数值</summary><pre>{}</pre></details></td></tr><tr><td><span class='category-label'>时间顺序</span></td><td>RGB 时间顺序</td><td><span class='badge pass'>正常</span></td><td>时间顺序正常，没有倒退或无效时间<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 1505,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 16.65800000046147,
+  &quot;p99_dt_ms&quot;: 16.679000000294764,
+  &quot;max_dt_ms&quot;: 16.72600000165403,
+  &quot;estimated_hz&quot;: 60.031216230777844,
+  &quot;duration_s&quot;: 25.053821999994398
+}</pre></details></td></tr><tr><td><span class='category-label'>文件对应关系</span></td><td>视频帧与时间戳数量</td><td><span class='badge pass'>正常</span></td><td>视频共有 1505 帧，并且每帧都有对应的时间戳<details><summary>查看专业数值</summary><pre>{
+  &quot;video_frames&quot;: 1505,
+  &quot;timestamp_rows&quot;: 1505,
+  &quot;difference&quot;: 0
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 画面是否正常</td><td><span class='badge pass'>正常</span></td><td>抽查画面正常，没有黑屏或明显缺少细节的画面<details><summary>查看专业数值</summary><pre>{
+  &quot;sample_count&quot;: 125,
+  &quot;black_frame_fraction&quot;: 0.0,
+  &quot;low_detail_frame_fraction&quot;: 0.0,
+  &quot;static_transition_fraction&quot;: 0.0,
+  &quot;longest_static_run_s&quot;: 0.0,
+  &quot;motion_energy_p50&quot;: 7.574316501617432,
+  &quot;motion_energy_p99&quot;: 20.988483428955078
+}</pre></details></td></tr><tr><td><span class='category-label'>相机标定</span></td><td>相机内参</td><td><span class='badge warn'>需注意</span></td><td>本次交付文件中未提供相机内参，因此无法可靠地把三维轨迹画回视频；当前借用其他设备参数生成的画面只供查看<details><summary>查看专业数值</summary><pre>{}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>原始 SLAM 轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 13029,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 2.0000000004074536,
+  &quot;p99_dt_ms&quot;: 2.166729998643859,
+  &quot;max_dt_ms&quot;: 5.999000000883825,
+  &quot;estimated_hz&quot;: 499.9999998981366,
+  &quot;duration_s&quot;: 26.074001000000862,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 4.212949988868786e-12,
+  &quot;quaternion_norm_error_max&quot;: 4.236389017364672e-12,
+  &quot;linear_speed_mps_p50&quot;: 0.053542509229648816,
+  &quot;linear_speed_mps_p95&quot;: 0.1569383343750956,
+  &quot;linear_speed_mps_p99&quot;: 0.1765418747447929,
+  &quot;linear_speed_mps_max&quot;: 0.19061694495226092,
+  &quot;angular_speed_radps_p50&quot;: 0.13355944274507273,
+  &quot;angular_speed_radps_p95&quot;: 0.44041721856478966,
+  &quot;angular_speed_radps_p99&quot;: 0.5336926274557673,
+  &quot;angular_speed_radps_max&quot;: 0.6574947350428177,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 241.4602979061907
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>处理后 SLAM 轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 13029,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 2.0000000004074536,
+  &quot;p99_dt_ms&quot;: 2.166729998643859,
+  &quot;max_dt_ms&quot;: 5.999000000883825,
+  &quot;estimated_hz&quot;: 499.9999998981366,
+  &quot;duration_s&quot;: 26.074001000000862,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 1.1102230246251565e-16,
+  &quot;quaternion_norm_error_max&quot;: 1.1102230246251565e-16,
+  &quot;linear_speed_mps_p50&quot;: 0.06042369405309819,
+  &quot;linear_speed_mps_p95&quot;: 0.1570959169694172,
+  &quot;linear_speed_mps_p99&quot;: 0.18153249138157457,
+  &quot;linear_speed_mps_max&quot;: 0.21288903371993656,
+  &quot;angular_speed_radps_p50&quot;: 0.13355944232889777,
+  &quot;angular_speed_radps_p95&quot;: 0.44041721840093706,
+  &quot;angular_speed_radps_p99&quot;: 0.5336926274557673,
+  &quot;angular_speed_radps_max&quot;: 0.6574947350428177,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 223.24100106800677
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>融合轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 2506,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 9.999752001021989,
+  &quot;p99_dt_ms&quot;: 10.664406238356607,
+  &quot;max_dt_ms&quot;: 11.641502998827491,
+  &quot;estimated_hz&quot;: 100.00248005128513,
+  &quot;duration_s&quot;: 25.049956082999415,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 1.1102230246251565e-16,
+  &quot;quaternion_norm_error_max&quot;: 1.1102230246251565e-16,
+  &quot;linear_speed_mps_p50&quot;: 0.06298269993106027,
+  &quot;linear_speed_mps_p95&quot;: 0.15857738417942074,
+  &quot;linear_speed_mps_p99&quot;: 0.18678977315011847,
+  &quot;linear_speed_mps_max&quot;: 0.20736817436327917,
+  &quot;angular_speed_radps_p50&quot;: 0.14014082323319815,
+  &quot;angular_speed_radps_p95&quot;: 0.4398791522293778,
+  &quot;angular_speed_radps_p99&quot;: 0.5337106330990312,
+  &quot;angular_speed_radps_max&quot;: 0.6832175870484828,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 72.22540255784102
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>融合轨迹是否完整</td><td><span class='badge pass'>正常</span></td><td>融合轨迹共有 2506 个点，没有跳过或匹配失败<details><summary>查看专业数值</summary><pre>{
+  &quot;total_merged&quot;: 2506,
+  &quot;averaged&quot;: 2506,
+  &quot;use_slam&quot;: 0,
+  &quot;use_vive&quot;: 0,
+  &quot;both_high&quot;: 0,
+  &quot;skipped&quot;: 0,
+  &quot;no_match&quot;: 0,
+  &quot;velocity_threshold_mps&quot;: 1.0,
+  &quot;matching_tolerance_s&quot;: 0.01,
+  &quot;trajectory_row_count&quot;: 2506
+}</pre></details></td></tr><tr><td><span class='category-label'>IMU</span></td><td>IMU</td><td><span class='badge info'>补充说明</span></td><td>这段没有 IMU；模型不用 IMU 时不影响，否则会少一种输入<details><summary>查看专业数值</summary><pre>{}</pre></details></td></tr><tr><td><span class='category-label'>夹爪信号</span></td><td>夹爪开度</td><td><span class='badge warn'>需注意</span></td><td>夹爪开度长时间不变；可能是在保持不动，也可能是信号卡住，需要对照视频确认<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 5015,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 4.999999997380655,
+  &quot;p99_dt_ms&quot;: 5.014870002414682,
+  &quot;max_dt_ms&quot;: 5.113999999593943,
+  &quot;estimated_hz&quot;: 200.0000001047738,
+  &quot;duration_s&quot;: 25.070443999997224,
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;consecutive_duplicate_count&quot;: 2917,
+  &quot;consecutive_duplicate_fraction&quot;: 0.5817710410849621,
+  &quot;longest_duplicate_run&quot;: 24,
+  &quot;value_0_p01&quot;: 0.886459186488878,
+  &quot;value_0_p50&quot;: 87.03032454186666,
+  &quot;value_0_p99&quot;: 87.27606689635554
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与原始 SLAM 轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与原始 SLAM 轨迹对时良好：约 99% 的时间误差不超过 1.00 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.5029999956605025,
+  &quot;p95_ms&quot;: 0.9490000011282973,
+  &quot;p99_ms&quot;: 0.9969999955501407,
+  &quot;max_ms&quot;: 24.397999994107522
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与处理后 SLAM 轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与处理后 SLAM 轨迹对时良好：约 99% 的时间误差不超过 1.00 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.5029999956605025,
+  &quot;p95_ms&quot;: 0.9490000011282973,
+  &quot;p99_ms&quot;: 0.9969999955501407,
+  &quot;max_ms&quot;: 24.397999994107522
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与融合轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与融合轨迹对时良好：约 99% 的时间误差不超过 4.94 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 2.4937380003393628,
+  &quot;p95_ms&quot;: 4.717869803425856,
+  &quot;p99_ms&quot;: 4.937030482687987,
+  &quot;max_ms&quot;: 24.39799499552464
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与夹爪开度对时</td><td><span class='badge pass'>正常</span></td><td>视频与夹爪开度对时良好：约 99% 的时间误差不超过 2.48 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 1.2500000011641532,
+  &quot;p95_ms&quot;: 2.3740000018733554,
+  &quot;p99_ms&quot;: 2.4779200021293946,
+  &quot;max_ms&quot;: 18.11699999962002
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>画面与轨迹是否同步</td><td><span class='badge info'>补充说明</span></td><td>画面动作和轨迹变化大致对得上；这只能排查整段错位，不能证明逐帧完全同步<details><summary>查看专业数值</summary><pre>{
+  &quot;max_correlation&quot;: 0.7770712922282081,
+  &quot;best_lag_samples&quot;: 0,
+  &quot;best_lag_ms&quot;: 0.0,
+  &quot;sample_count&quot;: 124
+}</pre></details></td></tr></tbody></table></div></section><section class='recording-section' id='recording-5'><div class='section-kicker'>RECORDING 05</div><h2>fastumi新<span class='heading-separator'> / </span><span class='heading-detail'>left_hand_250801DR48FP26001788</span></h2><div class='recording-meta'><span class='badge warn'>需注意</span><span>FastUMI 手持数据</span><span><strong>94.0</strong> / 100 检查分</span></div><div class='artifact-links'><a class='btn btn--light' href='previews/fastumi新__left_hand_250801DR48FP26001788.mp4'>H.264 视频</a><a class='btn btn--light' href='snapshots/fastumi新__left_hand_250801DR48FP26001788.png'>检查快照</a></div><figure class='media-frame media-frame--wide'><div class='video-player' data-player><video playsinline preload='metadata' poster='snapshots/fastumi新__left_hand_250801DR48FP26001788.png'><source src='previews/fastumi新__left_hand_250801DR48FP26001788.mp4' type='video/mp4'>当前浏览器无法播放该视频。</video><div class='video-player__bar'><button class='video-control play' type='button' aria-label='播放视频'>▶</button><button class='video-control speed' type='button' aria-label='调整播放速度'>1×</button><input class='video-player__scrub' type='range' min='0' max='1' step='0.001' value='0' aria-label='视频播放进度'><button class='video-control expand' type='button' aria-label='全屏播放'>⛶</button></div></div><figcaption>本视频之所以能画出 TCP，是因为临时假设了 <code>pose→TCP=(0.00, 0.13, 0.10) m</code>、<code>RPY=(0.0, 0.0, 0.0)°</code>。它只用于检查运动方向；能画出来不代表这就是真实 TCP。供应方给出真实固定变换后应替换该假设。</figcaption></figure><figure class='snapshot-card'><a href='snapshots/fastumi新__left_hand_250801DR48FP26001788.png'><img loading='lazy' src='snapshots/fastumi新__left_hand_250801DR48FP26001788.png' alt='fastumi新__left_hand_250801DR48FP26001788 质量检查快照'></a><figcaption>静态检查帧。点击可查看原始分辨率。</figcaption></figure><div class='table-wrap'><table class='checks-table'><thead><tr><th>类别</th><th>检查项</th><th>状态</th><th>结论</th></tr></thead><tbody><tr><td><span class='category-label'>视频</span></td><td>RGB 视频规格</td><td><span class='badge pass'>正常</span></td><td>视频规格为 1280x1280、60.000 帧/秒，可以正常读取<details><summary>查看专业数值</summary><pre>{
+  &quot;path&quot;: &quot;[local path omitted]&quot;,
+  &quot;codec_name&quot;: &quot;mpeg4&quot;,
+  &quot;codec_long_name&quot;: &quot;MPEG-4 part 2&quot;,
+  &quot;width&quot;: 1280,
+  &quot;height&quot;: 1280,
+  &quot;fps&quot;: 60.0,
+  &quot;nb_frames&quot;: 1851,
+  &quot;duration_s&quot;: 30.85,
+  &quot;pix_fmt&quot;: &quot;yuv420p&quot;,
+  &quot;size_bytes&quot;: 58402450
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 视频能否完整播放</td><td><span class='badge pass'>正常</span></td><td>整段视频都能正常读取，没有发现损坏帧<details><summary>查看专业数值</summary><pre>{}</pre></details></td></tr><tr><td><span class='category-label'>时间顺序</span></td><td>RGB 时间顺序</td><td><span class='badge pass'>正常</span></td><td>时间顺序正常，没有倒退或无效时间<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 1851,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 16.65800000046147,
+  &quot;p99_dt_ms&quot;: 16.72950999920431,
+  &quot;max_dt_ms&quot;: 17.034000000421656,
+  &quot;estimated_hz&quot;: 60.031216230777844,
+  &quot;duration_s&quot;: 30.816922000001796
+}</pre></details></td></tr><tr><td><span class='category-label'>文件对应关系</span></td><td>视频帧与时间戳数量</td><td><span class='badge pass'>正常</span></td><td>视频共有 1851 帧，并且每帧都有对应的时间戳<details><summary>查看专业数值</summary><pre>{
+  &quot;video_frames&quot;: 1851,
+  &quot;timestamp_rows&quot;: 1851,
+  &quot;difference&quot;: 0
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 画面是否正常</td><td><span class='badge pass'>正常</span></td><td>抽查画面正常，没有黑屏或明显缺少细节的画面<details><summary>查看专业数值</summary><pre>{
+  &quot;sample_count&quot;: 154,
+  &quot;black_frame_fraction&quot;: 0.0,
+  &quot;low_detail_frame_fraction&quot;: 0.0,
+  &quot;static_transition_fraction&quot;: 0.0392156862745098,
+  &quot;longest_static_run_s&quot;: 0.6,
+  &quot;motion_energy_p50&quot;: 4.096328258514404,
+  &quot;motion_energy_p99&quot;: 24.15937042236328
+}</pre></details></td></tr><tr><td><span class='category-label'>相机标定</span></td><td>相机内参</td><td><span class='badge warn'>需注意</span></td><td>相机参数文件能读取，但镜头模型还没用官方方法核对；当前投影只适合人工检查，不能当训练真值<details><summary>查看专业数值</summary><pre>{
+  &quot;fx&quot;: 391.348388671875,
+  &quot;fy&quot;: 391.27093505859375,
+  &quot;cx&quot;: 637.9758911132812,
+  &quot;cy&quot;: 641.518310546875,
+  &quot;alpha&quot;: 0.6789121031761169,
+  &quot;beta&quot;: 0.7503167390823364,
+  &quot;width&quot;: 1280.0,
+  &quot;height&quot;: 1280.0,
+  &quot;model&quot;: &quot;seucm&quot;,
+  &quot;cx_is_null&quot;: true,
+  &quot;cy_is_null&quot;: true,
+  &quot;camera_matrix_is_standard_K&quot;: false
+}</pre></details></td></tr><tr><td><span class='category-label'>相机标定</span></td><td>相机外参</td><td><span class='badge pass'>正常</span></td><td>相机外参文件能正常读取；但文件能读不代表精度已经实测确认<details><summary>查看专业数值</summary><pre>{
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;position_norm_m&quot;: 0.024085114289429266,
+  &quot;quaternion_norm_error&quot;: 9.741532025486777e-09,
+  &quot;image_topic&quot;: &quot;/xv_sdk/250801DR48FP26001788/color_camera/image&quot;
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>原始 SLAM 轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 15280,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 2.0000000004074536,
+  &quot;p99_dt_ms&quot;: 3.9572200008842624,
+  &quot;max_dt_ms&quot;: 9.998000001360197,
+  &quot;estimated_hz&quot;: 499.9999998981366,
+  &quot;duration_s&quot;: 30.8199769999992,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 1.7804879792748806e-12,
+  &quot;quaternion_norm_error_max&quot;: 1.7891244041834398e-12,
+  &quot;linear_speed_mps_p50&quot;: 0.015153459524417871,
+  &quot;linear_speed_mps_p95&quot;: 0.2799011780550803,
+  &quot;linear_speed_mps_p99&quot;: 0.37817729732701816,
+  &quot;linear_speed_mps_max&quot;: 0.40682150935480427,
+  &quot;angular_speed_radps_p50&quot;: 0.12266627053584075,
+  &quot;angular_speed_radps_p95&quot;: 0.7834648395013097,
+  &quot;angular_speed_radps_p99&quot;: 1.058618678430957,
+  &quot;angular_speed_radps_max&quot;: 1.30353728307519,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 422.6377126991173
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>处理后 SLAM 轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 15280,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 2.0000000004074536,
+  &quot;p99_dt_ms&quot;: 3.9572200008842624,
+  &quot;max_dt_ms&quot;: 9.998000001360197,
+  &quot;estimated_hz&quot;: 499.9999998981366,
+  &quot;duration_s&quot;: 30.8199769999992,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 1.1102230246251565e-16,
+  &quot;quaternion_norm_error_max&quot;: 2.220446049250313e-16,
+  &quot;linear_speed_mps_p50&quot;: 0.012005467526977516,
+  &quot;linear_speed_mps_p95&quot;: 0.2597585965786556,
+  &quot;linear_speed_mps_p99&quot;: 0.33278693658640157,
+  &quot;linear_speed_mps_max&quot;: 0.3574205402036787,
+  &quot;angular_speed_radps_p50&quot;: 0.12264025772690845,
+  &quot;angular_speed_radps_p95&quot;: 0.7834648392065748,
+  &quot;angular_speed_radps_p99&quot;: 1.058618678430957,
+  &quot;angular_speed_radps_max&quot;: 1.3035372829900198,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 422.637713098068
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>融合轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 3083,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 9.998083000027691,
+  &quot;p99_dt_ms&quot;: 12.220971769238535,
+  &quot;max_dt_ms&quot;: 23.55361000081757,
+  &quot;estimated_hz&quot;: 100.0191736753166,
+  &quot;duration_s&quot;: 30.819878817001154,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 1.1102230246251565e-16,
+  &quot;quaternion_norm_error_max&quot;: 1.1102230246251565e-16,
+  &quot;linear_speed_mps_p50&quot;: 0.011744893704265943,
+  &quot;linear_speed_mps_p95&quot;: 0.26086279470312096,
+  &quot;linear_speed_mps_p99&quot;: 0.3339524791819468,
+  &quot;linear_speed_mps_max&quot;: 0.36711744361847914,
+  &quot;angular_speed_radps_p50&quot;: 0.12000165286484533,
+  &quot;angular_speed_radps_p95&quot;: 0.784672058881597,
+  &quot;angular_speed_radps_p99&quot;: 1.0541675647568514,
+  &quot;angular_speed_radps_max&quot;: 1.7592962224769475,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 284.61138440586654
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>融合轨迹是否完整</td><td><span class='badge pass'>正常</span></td><td>融合轨迹共有 3083 个点，没有跳过或匹配失败<details><summary>查看专业数值</summary><pre>{
+  &quot;total_merged&quot;: 3083,
+  &quot;averaged&quot;: 3083,
+  &quot;use_slam&quot;: 0,
+  &quot;use_vive&quot;: 0,
+  &quot;both_high&quot;: 0,
+  &quot;skipped&quot;: 0,
+  &quot;no_match&quot;: 0,
+  &quot;velocity_threshold_mps&quot;: 1.0,
+  &quot;matching_tolerance_s&quot;: 0.01,
+  &quot;trajectory_row_count&quot;: 3083
+}</pre></details></td></tr><tr><td><span class='category-label'>IMU</span></td><td>IMU</td><td><span class='badge warn'>需注意</span></td><td>IMU 中有少量记录用了相同时间，转换前去重即可<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 14614,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 1,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 1.9920000013371464,
+  &quot;p99_dt_ms&quot;: 5.969000001241511,
+  &quot;max_dt_ms&quot;: 29.88300000288291,
+  &quot;estimated_hz&quot;: 502.008031791537,
+  &quot;duration_s&quot;: 30.825686000000132,
+  &quot;consecutive_duplicate_count&quot;: 1,
+  &quot;consecutive_duplicate_fraction&quot;: 6.843221788818175e-05,
+  &quot;longest_duplicate_run&quot;: 1,
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;gyro_norm_radps_p01&quot;: 0.0010258640260775304,
+  &quot;gyro_norm_radps_p50&quot;: 0.11978385035376256,
+  &quot;gyro_norm_radps_p99&quot;: 1.0458654039907507,
+  &quot;accel_norm_mps2_p01&quot;: 8.918671204896247,
+  &quot;accel_norm_mps2_p50&quot;: 9.806507749949725,
+  &quot;accel_norm_mps2_p99&quot;: 11.104840811422019
+}</pre></details></td></tr><tr><td><span class='category-label'>夹爪信号</span></td><td>夹爪开度</td><td><span class='badge pass'>正常</span></td><td>时间顺序正常，没有倒退或无效时间<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 6165,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 5.000000001018634,
+  &quot;p99_dt_ms&quot;: 5.023110001566238,
+  &quot;max_dt_ms&quot;: 5.376999997679377,
+  &quot;estimated_hz&quot;: 199.99999995925464,
+  &quot;duration_s&quot;: 30.819885999997496,
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;consecutive_duplicate_count&quot;: 96,
+  &quot;consecutive_duplicate_fraction&quot;: 0.015574302401038288,
+  &quot;longest_duplicate_run&quot;: 2,
+  &quot;value_0_p01&quot;: 3.5375509899708177,
+  &quot;value_0_p50&quot;: 87.94152343376683,
+  &quot;value_0_p99&quot;: 88.32219780401802
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与原始 SLAM 轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与原始 SLAM 轨迹对时良好：约 99% 的时间误差不超过 1.65 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.5109999983687885,
+  &quot;p95_ms&quot;: 0.963999998930376,
+  &quot;p99_ms&quot;: 1.6544999998586718,
+  &quot;max_ms&quot;: 4.057000001921551
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与处理后 SLAM 轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与处理后 SLAM 轨迹对时良好：约 99% 的时间误差不超过 1.65 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.5109999983687885,
+  &quot;p95_ms&quot;: 0.963999998930376,
+  &quot;p99_ms&quot;: 1.6544999998586718,
+  &quot;max_ms&quot;: 4.057000001921551
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与融合轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与融合轨迹对时良好：约 99% 的时间误差不超过 5.13 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 2.4322039971593767,
+  &quot;p95_ms&quot;: 4.7875630007183645,
+  &quot;p99_ms&quot;: 5.130174500663998,
+  &quot;max_ms&quot;: 8.3728700010397
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与IMU对时</td><td><span class='badge pass'>正常</span></td><td>视频与IMU对时良好：约 99% 的时间误差不超过 3.07 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.5609999971056823,
+  &quot;p95_ms&quot;: 1.7915000007633353,
+  &quot;p99_ms&quot;: 3.0650000007881317,
+  &quot;max_ms&quot;: 7.329000000027008
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与夹爪开度对时</td><td><span class='badge pass'>正常</span></td><td>视频与夹爪开度对时良好：约 99% 的时间误差不超过 2.48 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 1.2400000014167745,
+  &quot;p95_ms&quot;: 2.3789999995642575,
+  &quot;p99_ms&quot;: 2.4759999996604165,
+  &quot;max_ms&quot;: 3.4990000021934975
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>画面与轨迹是否同步</td><td><span class='badge info'>补充说明</span></td><td>画面动作和轨迹变化大致对得上；这只能排查整段错位，不能证明逐帧完全同步<details><summary>查看专业数值</summary><pre>{
+  &quot;max_correlation&quot;: 0.8434215003097398,
+  &quot;best_lag_samples&quot;: 0,
+  &quot;best_lag_ms&quot;: 0.0,
+  &quot;sample_count&quot;: 153
+}</pre></details></td></tr></tbody></table></div></section><section class='recording-section' id='recording-6'><div class='section-kicker'>RECORDING 06</div><h2>fastumi新<span class='heading-separator'> / </span><span class='heading-detail'>right_hand_250801DR48FP26001795</span></h2><div class='recording-meta'><span class='badge warn'>需注意</span><span>FastUMI 手持数据</span><span><strong>94.0</strong> / 100 检查分</span></div><div class='artifact-links'><a class='btn btn--light' href='previews/fastumi新__right_hand_250801DR48FP26001795.mp4'>H.264 视频</a><a class='btn btn--light' href='snapshots/fastumi新__right_hand_250801DR48FP26001795.png'>检查快照</a></div><figure class='media-frame media-frame--wide'><div class='video-player' data-player><video playsinline preload='metadata' poster='snapshots/fastumi新__right_hand_250801DR48FP26001795.png'><source src='previews/fastumi新__right_hand_250801DR48FP26001795.mp4' type='video/mp4'>当前浏览器无法播放该视频。</video><div class='video-player__bar'><button class='video-control play' type='button' aria-label='播放视频'>▶</button><button class='video-control speed' type='button' aria-label='调整播放速度'>1×</button><input class='video-player__scrub' type='range' min='0' max='1' step='0.001' value='0' aria-label='视频播放进度'><button class='video-control expand' type='button' aria-label='全屏播放'>⛶</button></div></div><figcaption>本视频之所以能画出 TCP，是因为临时假设了 <code>pose→TCP=(0.00, 0.13, 0.10) m</code>、<code>RPY=(0.0, 0.0, 0.0)°</code>。它只用于检查运动方向；能画出来不代表这就是真实 TCP。供应方给出真实固定变换后应替换该假设。</figcaption></figure><figure class='snapshot-card'><a href='snapshots/fastumi新__right_hand_250801DR48FP26001795.png'><img loading='lazy' src='snapshots/fastumi新__right_hand_250801DR48FP26001795.png' alt='fastumi新__right_hand_250801DR48FP26001795 质量检查快照'></a><figcaption>静态检查帧。点击可查看原始分辨率。</figcaption></figure><div class='table-wrap'><table class='checks-table'><thead><tr><th>类别</th><th>检查项</th><th>状态</th><th>结论</th></tr></thead><tbody><tr><td><span class='category-label'>视频</span></td><td>RGB 视频规格</td><td><span class='badge pass'>正常</span></td><td>视频规格为 1280x1280、60.000 帧/秒，可以正常读取<details><summary>查看专业数值</summary><pre>{
+  &quot;path&quot;: &quot;[local path omitted]&quot;,
+  &quot;codec_name&quot;: &quot;mpeg4&quot;,
+  &quot;codec_long_name&quot;: &quot;MPEG-4 part 2&quot;,
+  &quot;width&quot;: 1280,
+  &quot;height&quot;: 1280,
+  &quot;fps&quot;: 60.0,
+  &quot;nb_frames&quot;: 1850,
+  &quot;duration_s&quot;: 30.833333,
+  &quot;pix_fmt&quot;: &quot;yuv420p&quot;,
+  &quot;size_bytes&quot;: 80568782
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 视频能否完整播放</td><td><span class='badge pass'>正常</span></td><td>整段视频都能正常读取，没有发现损坏帧<details><summary>查看专业数值</summary><pre>{}</pre></details></td></tr><tr><td><span class='category-label'>时间顺序</span></td><td>RGB 时间顺序</td><td><span class='badge pass'>正常</span></td><td>时间顺序正常，没有倒退或无效时间<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 1850,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 16.65800000046147,
+  &quot;p99_dt_ms&quot;: 16.72604000166757,
+  &quot;max_dt_ms&quot;: 17.237999996723374,
+  &quot;estimated_hz&quot;: 60.031216230777844,
+  &quot;duration_s&quot;: 30.8003549999994
+}</pre></details></td></tr><tr><td><span class='category-label'>文件对应关系</span></td><td>视频帧与时间戳数量</td><td><span class='badge pass'>正常</span></td><td>视频共有 1850 帧，并且每帧都有对应的时间戳<details><summary>查看专业数值</summary><pre>{
+  &quot;video_frames&quot;: 1850,
+  &quot;timestamp_rows&quot;: 1850,
+  &quot;difference&quot;: 0
+}</pre></details></td></tr><tr><td><span class='category-label'>视频</span></td><td>RGB 画面是否正常</td><td><span class='badge pass'>正常</span></td><td>抽查画面正常，没有黑屏或明显缺少细节的画面<details><summary>查看专业数值</summary><pre>{
+  &quot;sample_count&quot;: 154,
+  &quot;black_frame_fraction&quot;: 0.0,
+  &quot;low_detail_frame_fraction&quot;: 0.0,
+  &quot;static_transition_fraction&quot;: 0.0196078431372549,
+  &quot;longest_static_run_s&quot;: 0.6,
+  &quot;motion_energy_p50&quot;: 10.8687105178833,
+  &quot;motion_energy_p99&quot;: 25.565773010253906
+}</pre></details></td></tr><tr><td><span class='category-label'>相机标定</span></td><td>相机内参</td><td><span class='badge warn'>需注意</span></td><td>相机参数文件能读取，但镜头模型还没用官方方法核对；当前投影只适合人工检查，不能当训练真值<details><summary>查看专业数值</summary><pre>{
+  &quot;fx&quot;: 397.3277587890625,
+  &quot;fy&quot;: 397.1492004394531,
+  &quot;cx&quot;: 638.1333618164062,
+  &quot;cy&quot;: 641.1234741210938,
+  &quot;alpha&quot;: 0.6834353804588318,
+  &quot;beta&quot;: 0.7418198585510254,
+  &quot;width&quot;: 1280.0,
+  &quot;height&quot;: 1280.0,
+  &quot;model&quot;: &quot;seucm&quot;,
+  &quot;cx_is_null&quot;: true,
+  &quot;cy_is_null&quot;: true,
+  &quot;camera_matrix_is_standard_K&quot;: false
+}</pre></details></td></tr><tr><td><span class='category-label'>相机标定</span></td><td>相机外参</td><td><span class='badge pass'>正常</span></td><td>相机外参文件能正常读取；但文件能读不代表精度已经实测确认<details><summary>查看专业数值</summary><pre>{
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;position_norm_m&quot;: 0.026279982359511487,
+  &quot;quaternion_norm_error&quot;: 1.0986531684409329e-09,
+  &quot;image_topic&quot;: &quot;/xv_sdk/250801DR48FP26001795/color_camera/image&quot;
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>原始 SLAM 轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 15295,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 2.0000000004074536,
+  &quot;p99_dt_ms&quot;: 3.3903300012752826,
+  &quot;max_dt_ms&quot;: 11.58200000281795,
+  &quot;estimated_hz&quot;: 499.9999998981366,
+  &quot;duration_s&quot;: 30.819994000001316,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 6.784481865196312e-12,
+  &quot;quaternion_norm_error_max&quot;: 6.822542530926512e-12,
+  &quot;linear_speed_mps_p50&quot;: 0.09946147843491732,
+  &quot;linear_speed_mps_p95&quot;: 0.28741130354944117,
+  &quot;linear_speed_mps_p99&quot;: 0.428876614360977,
+  &quot;linear_speed_mps_max&quot;: 0.4961077840216324,
+  &quot;angular_speed_radps_p50&quot;: 0.248937964455808,
+  &quot;angular_speed_radps_p95&quot;: 0.6331212823961425,
+  &quot;angular_speed_radps_p99&quot;: 1.275395797093492,
+  &quot;angular_speed_radps_max&quot;: 3.369924064281125,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 318.65431826717173
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>处理后 SLAM 轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 15295,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 2.0000000004074536,
+  &quot;p99_dt_ms&quot;: 3.3903300012752826,
+  &quot;max_dt_ms&quot;: 11.58200000281795,
+  &quot;estimated_hz&quot;: 499.9999998981366,
+  &quot;duration_s&quot;: 30.819994000001316,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 1.1102230246251565e-16,
+  &quot;quaternion_norm_error_max&quot;: 2.220446049250313e-16,
+  &quot;linear_speed_mps_p50&quot;: 0.09415294818021716,
+  &quot;linear_speed_mps_p95&quot;: 0.29596159802073047,
+  &quot;linear_speed_mps_p99&quot;: 0.37762855564137365,
+  &quot;linear_speed_mps_max&quot;: 0.5972231491575036,
+  &quot;angular_speed_radps_p50&quot;: 0.248937964455808,
+  &quot;angular_speed_radps_p95&quot;: 0.6331212822106977,
+  &quot;angular_speed_radps_p99&quot;: 1.2753957970124485,
+  &quot;angular_speed_radps_max&quot;: 3.369924064281125,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 318.65431826535416
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>融合轨迹</td><td><span class='badge pass'>正常</span></td><td>轨迹时间顺序、位置数值和旋转格式都正常，没有发现明显坏点<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 3081,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 9.999752001021989,
+  &quot;p99_dt_ms&quot;: 11.550199960511238,
+  &quot;max_dt_ms&quot;: 23.6856940027792,
+  &quot;estimated_hz&quot;: 100.00248005128513,
+  &quot;duration_s&quot;: 30.799707174002833,
+  &quot;finite_row_fraction&quot;: 1.0,
+  &quot;quaternion_norm_error_p99&quot;: 1.1102230246251565e-16,
+  &quot;quaternion_norm_error_max&quot;: 2.220446049250313e-16,
+  &quot;linear_speed_mps_p50&quot;: 0.09335145873436437,
+  &quot;linear_speed_mps_p95&quot;: 0.2933623648161652,
+  &quot;linear_speed_mps_p99&quot;: 0.38013580126434954,
+  &quot;linear_speed_mps_max&quot;: 0.5488822945600188,
+  &quot;angular_speed_radps_p50&quot;: 0.24675103805119591,
+  &quot;angular_speed_radps_p95&quot;: 0.6193417719702998,
+  &quot;angular_speed_radps_p99&quot;: 1.2497909407648327,
+  &quot;angular_speed_radps_max&quot;: 1.4255936864367718,
+  &quot;consecutive_duplicate_value_count&quot;: 0,
+  &quot;sudden_change_count&quot;: 0,
+  &quot;sudden_change_fraction&quot;: 0.0,
+  &quot;extreme_position_count&quot;: 0,
+  &quot;max_residual_z&quot;: 98.93311350914338
+}</pre></details></td></tr><tr><td><span class='category-label'>运动轨迹</span></td><td>融合轨迹是否完整</td><td><span class='badge pass'>正常</span></td><td>融合轨迹共有 3081 个点，没有跳过或匹配失败<details><summary>查看专业数值</summary><pre>{
+  &quot;total_merged&quot;: 3081,
+  &quot;averaged&quot;: 3081,
+  &quot;use_slam&quot;: 0,
+  &quot;use_vive&quot;: 0,
+  &quot;both_high&quot;: 0,
+  &quot;skipped&quot;: 0,
+  &quot;no_match&quot;: 0,
+  &quot;velocity_threshold_mps&quot;: 1.0,
+  &quot;matching_tolerance_s&quot;: 0.01,
+  &quot;trajectory_row_count&quot;: 3081
+}</pre></details></td></tr><tr><td><span class='category-label'>IMU</span></td><td>IMU</td><td><span class='badge warn'>需注意</span></td><td>IMU 中有少量记录用了相同时间，转换前去重即可<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 14320,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 2,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 1.9700000011653174,
+  &quot;p99_dt_ms&quot;: 5.914000001212116,
+  &quot;max_dt_ms&quot;: 31.53999999994994,
+  &quot;estimated_hz&quot;: 507.61421289769964,
+  &quot;duration_s&quot;: 30.818225999999413,
+  &quot;consecutive_duplicate_count&quot;: 2,
+  &quot;consecutive_duplicate_fraction&quot;: 0.00013967455827920943,
+  &quot;longest_duplicate_run&quot;: 1,
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;gyro_norm_radps_p01&quot;: 0.003869968658608573,
+  &quot;gyro_norm_radps_p50&quot;: 0.251072971759452,
+  &quot;gyro_norm_radps_p99&quot;: 1.2478389213007215,
+  &quot;accel_norm_mps2_p01&quot;: 8.658844350369604,
+  &quot;accel_norm_mps2_p50&quot;: 9.82503326472807,
+  &quot;accel_norm_mps2_p99&quot;: 11.29902820317117
+}</pre></details></td></tr><tr><td><span class='category-label'>夹爪信号</span></td><td>夹爪开度</td><td><span class='badge pass'>正常</span></td><td>时间顺序正常，没有倒退或无效时间<details><summary>查看专业数值</summary><pre>{
+  &quot;count&quot;: 6164,
+  &quot;nonfinite_count&quot;: 0,
+  &quot;duplicate_timestamp_count&quot;: 0,
+  &quot;backward_timestamp_count&quot;: 0,
+  &quot;median_dt_ms&quot;: 5.000000001018634,
+  &quot;p99_dt_ms&quot;: 5.013999998482177,
+  &quot;max_dt_ms&quot;: 5.578000000241445,
+  &quot;estimated_hz&quot;: 199.99999995925464,
+  &quot;duration_s&quot;: 30.815035999999964,
+  &quot;finite_fraction&quot;: 1.0,
+  &quot;consecutive_duplicate_count&quot;: 82,
+  &quot;consecutive_duplicate_fraction&quot;: 0.01330520850235275,
+  &quot;longest_duplicate_run&quot;: 2,
+  &quot;value_0_p01&quot;: 1.6979326787944709,
+  &quot;value_0_p50&quot;: 88.47387441289062,
+  &quot;value_0_p99&quot;: 88.97996875464301
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与原始 SLAM 轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与原始 SLAM 轨迹对时良好：约 99% 的时间误差不超过 1.22 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.5065000004833564,
+  &quot;p95_ms&quot;: 0.9630000005927286,
+  &quot;p99_ms&quot;: 1.2171399990984353,
+  &quot;max_ms&quot;: 25.376999998115934
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与处理后 SLAM 轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与处理后 SLAM 轨迹对时良好：约 99% 的时间误差不超过 1.22 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.5065000004833564,
+  &quot;p95_ms&quot;: 0.9630000005927286,
+  &quot;p99_ms&quot;: 1.2171399990984353,
+  &quot;max_ms&quot;: 25.376999998115934
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与融合轨迹对时</td><td><span class='badge pass'>正常</span></td><td>视频与融合轨迹对时良好：约 99% 的时间误差不超过 5.01 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 2.5669804999779444,
+  &quot;p95_ms&quot;: 4.78723109990824,
+  &quot;p99_ms&quot;: 5.012406868227117,
+  &quot;max_ms&quot;: 25.37699799722759
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与IMU对时</td><td><span class='badge pass'>正常</span></td><td>视频与IMU对时良好：约 99% 的时间误差不超过 2.96 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 0.556999999389518,
+  &quot;p95_ms&quot;: 1.7523999982586245,
+  &quot;p99_ms&quot;: 2.9595699978381163,
+  &quot;max_ms&quot;: 26.995000000169966
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>RGB 与夹爪开度对时</td><td><span class='badge pass'>正常</span></td><td>视频与夹爪开度对时良好：约 99% 的时间误差不超过 2.48 毫秒<details><summary>查看专业数值</summary><pre>{
+  &quot;p50_ms&quot;: 1.2524999983725138,
+  &quot;p95_ms&quot;: 2.373549999538227,
+  &quot;p99_ms&quot;: 2.4789999988570344,
+  &quot;max_ms&quot;: 28.02499999961583
+}</pre></details></td></tr><tr><td><span class='category-label'>数据对时</span></td><td>画面与轨迹是否同步</td><td><span class='badge info'>补充说明</span></td><td>画面动作和轨迹变化大致对得上；这只能排查整段错位，不能证明逐帧完全同步<details><summary>查看专业数值</summary><pre>{
+  &quot;max_correlation&quot;: 0.7842414810308644,
+  &quot;best_lag_samples&quot;: 0,
+  &quot;best_lag_ms&quot;: 0.0,
+  &quot;sample_count&quot;: 153
+}</pre></details></td></tr></tbody></table></div></section>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__inner">
+      <div>
+        <div class="footer__mark">UMI <span class="accent">QA</span></div>
+        <div class="footer__tag">数据检查报告 · 不能替代真实机器人测试</div>
+      </div>
+      <nav class="footer__links" aria-label="页脚">
+        <a href="RESULTS.md">审计结论</a>
+        <a href="#top">回到顶部</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    (() => {
+      const topbar = document.querySelector(".topbar");
+      const hero = document.querySelector(".hero");
+      const outlineLinks = [...document.querySelectorAll(".outline a")];
+      const sections = outlineLinks
+        .map((link) => document.querySelector(link.getAttribute("href")))
+        .filter(Boolean);
+
+      const updateHeader = () => {
+        const threshold = Math.max(80, hero.offsetHeight - 72);
+        topbar.dataset.scrolled = String(window.scrollY > threshold);
+      };
+
+      const updateOutline = () => {
+        const marker = window.scrollY + 150;
+        let active = sections[0];
+        sections.forEach((section) => {
+          if (section.offsetTop <= marker) active = section;
+        });
+        outlineLinks.forEach((link) => {
+          const selected = active && link.getAttribute("href") === `#${active.id}`;
+          if (selected) link.setAttribute("aria-current", "true");
+          else link.removeAttribute("aria-current");
+        });
+      };
+
+      let scrollQueued = false;
+      window.addEventListener("scroll", () => {
+        if (scrollQueued) return;
+        scrollQueued = true;
+        requestAnimationFrame(() => {
+          updateHeader();
+          updateOutline();
+          scrollQueued = false;
+        });
+      }, { passive: true });
+      updateHeader();
+      updateOutline();
+
+      document.querySelectorAll("[data-player]").forEach((player) => {
+        const video = player.querySelector("video");
+        const play = player.querySelector(".play");
+        const speed = player.querySelector(".speed");
+        const scrub = player.querySelector(".video-player__scrub");
+        const expand = player.querySelector(".expand");
+        const speeds = [1, 1.5, 2, 0.5];
+        let speedIndex = 0;
+
+        const syncPlayButton = () => {
+          const paused = video.paused;
+          play.textContent = paused ? "▶" : "Ⅱ";
+          play.setAttribute("aria-label", paused ? "播放视频" : "暂停视频");
+        };
+        play.addEventListener("click", () => {
+          if (video.paused) video.play().catch(() => {});
+          else video.pause();
+          syncPlayButton();
+        });
+        speed.addEventListener("click", () => {
+          speedIndex = (speedIndex + 1) % speeds.length;
+          video.playbackRate = speeds[speedIndex];
+          speed.textContent = `${speeds[speedIndex]}×`;
+        });
+        video.addEventListener("timeupdate", () => {
+          if (Number.isFinite(video.duration) && video.duration > 0) {
+            scrub.value = video.currentTime / video.duration;
+          }
+        });
+        scrub.addEventListener("input", () => {
+          if (Number.isFinite(video.duration) && video.duration > 0) {
+            video.currentTime = Number(scrub.value) * video.duration;
+          }
+        });
+        expand.addEventListener("click", () => {
+          if (player.requestFullscreen) player.requestFullscreen();
+        });
+        video.addEventListener("play", syncPlayButton);
+        video.addEventListener("pause", syncPlayButton);
+        syncPlayButton();
+      });
+
+      const drawerTrigger = document.querySelector(".mobile-outline__trigger");
+      const drawer = document.querySelector(".mobile-outline__overlay");
+      const drawerClose = document.querySelector(".mobile-outline__close");
+      const setDrawer = (open) => {
+        drawer.dataset.open = String(open);
+        drawerTrigger.setAttribute("aria-expanded", String(open));
+        document.body.classList.toggle("drawer-open", open);
+      };
+      drawerTrigger.addEventListener("click", () => setDrawer(true));
+      drawerClose.addEventListener("click", () => setDrawer(false));
+      drawer.addEventListener("click", (event) => {
+        if (event.target === drawer) setDrawer(false);
+      });
+      drawer.querySelectorAll("a").forEach((link) => {
+        link.addEventListener("click", () => setDrawer(false));
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") setDrawer(false);
+      });
+    })();
+  </script>
+</body>
+</html>

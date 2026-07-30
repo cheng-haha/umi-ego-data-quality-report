@@ -1,0 +1,404 @@
+{
+  "reference": "MediaPipe 2D landmarks are an independent diagnostic reference, not dataset ground truth.",
+  "sample_hz": 4,
+  "recordings": {
+    "ego带tof": {
+      "matched_hand_observations": 170,
+      "supplied_extrinsic": {
+        "orientation_xyzw": [
+          -0.008520263955611125,
+          -0.0046162437839590165,
+          0.007388318440516241,
+          0.9999257522079843
+        ],
+        "translation_m": [
+          -0.019003834575414658,
+          0.008578673005104065,
+          0.014475141651928425
+        ]
+      },
+      "modes": {
+        "direct_eucm": {
+          "mode": "direct",
+          "projection_model": "eucm",
+          "zero_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 48.56306459381875,
+            "p90_observation_error_px": 96.07106905887888,
+            "median_joint_error_px": 49.63032091727358,
+            "p90_joint_error_px": 105.88445658642513,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 48.1161071797868,
+            "p90_observation_error_px": 95.88605364559615,
+            "median_joint_error_px": 49.26676111883344,
+            "p90_joint_error_px": 106.08315949710574,
+            "time_shift_ms": -20
+          }
+        },
+        "provided_forward_eucm": {
+          "mode": "provided_forward",
+          "projection_model": "eucm",
+          "zero_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 67.4045630000559,
+            "p90_observation_error_px": 88.95099178796218,
+            "median_joint_error_px": 60.48229558091465,
+            "p90_joint_error_px": 100.65117621531692,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 67.2398995927732,
+            "p90_observation_error_px": 89.55727218624989,
+            "median_joint_error_px": 60.400799969678374,
+            "p90_joint_error_px": 100.55559908712182,
+            "time_shift_ms": -20
+          }
+        },
+        "provided_inverse_eucm": {
+          "mode": "provided_inverse",
+          "projection_model": "eucm",
+          "zero_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 44.4150983472566,
+            "p90_observation_error_px": 105.8271420751831,
+            "median_joint_error_px": 48.395937049593186,
+            "p90_joint_error_px": 116.03665845601772,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 43.04701746518229,
+            "p90_observation_error_px": 105.59391642658488,
+            "median_joint_error_px": 48.46214712315686,
+            "p90_joint_error_px": 116.1405864068256,
+            "time_shift_ms": -10
+          }
+        },
+        "direct_pinhole": {
+          "mode": "direct",
+          "projection_model": "pinhole",
+          "zero_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 42.710991045793946,
+            "p90_observation_error_px": 82.83820456749862,
+            "median_joint_error_px": 42.600187246671695,
+            "p90_joint_error_px": 94.46296023945418,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 42.0289486467876,
+            "p90_observation_error_px": 82.78640533856465,
+            "median_joint_error_px": 42.68459106640212,
+            "p90_joint_error_px": 94.3013741810083,
+            "time_shift_ms": 20
+          }
+        },
+        "provided_forward_pinhole": {
+          "mode": "provided_forward",
+          "projection_model": "pinhole",
+          "zero_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 58.149461725188374,
+            "p90_observation_error_px": 78.28145197400376,
+            "median_joint_error_px": 53.82028922836723,
+            "p90_joint_error_px": 89.273346959239,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 57.83941242060993,
+            "p90_observation_error_px": 78.22768264022291,
+            "median_joint_error_px": 53.74838075106915,
+            "p90_joint_error_px": 89.1840624727461,
+            "time_shift_ms": 10
+          }
+        },
+        "provided_inverse_pinhole": {
+          "mode": "provided_inverse",
+          "projection_model": "pinhole",
+          "zero_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 48.24421155256202,
+            "p90_observation_error_px": 93.17506223346182,
+            "median_joint_error_px": 49.00311958580954,
+            "p90_joint_error_px": 106.20408208616588,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 170,
+            "median_observation_error_px": 46.98709247955659,
+            "p90_observation_error_px": 93.25115935764934,
+            "median_joint_error_px": 48.999562412684135,
+            "p90_joint_error_px": 105.9326038634005,
+            "time_shift_ms": 20
+          }
+        }
+      },
+      "best_supplied_mode": "direct",
+      "best_projection_model": "pinhole",
+      "visual_fit_held_out": {
+        "observation_count": 83,
+        "median_observation_error_px": 27.414686262528008,
+        "p90_observation_error_px": 58.904183608748454,
+        "median_joint_error_px": 31.387008795223156,
+        "p90_joint_error_px": 63.90773917326571,
+        "optimizer_success": true,
+        "optimizer_cost": 652620.0648875249,
+        "rotation_angle_deg": 8.20756292701201,
+        "translation_norm_mm": 52.26383309707498,
+        "held_out_initial_median_observation_error_px": 37.00362734253978,
+        "held_out_initial_p90_observation_error_px": 83.06145200892526,
+        "time_shift_ms": 20,
+        "projection_model": "pinhole",
+        "rotation_matrix": [
+          [
+            0.9899537642147345,
+            0.1393467068993883,
+            0.023959131732475013
+          ],
+          [
+            -0.1397951914941549,
+            0.9900134680246779,
+            0.01818344205211857
+          ],
+          [
+            -0.021186060327269114,
+            -0.0213501383144503,
+            0.9995475588693934
+          ]
+        ],
+        "translation_m": [
+          -0.022875987168298365,
+          0.01671752222261718,
+          -0.04391721657631617
+        ],
+        "warning": "This fit is for visual diagnosis only and must not replace manufacturer calibration without an independent target."
+      },
+      "virtual_pinhole_fit_held_out": {
+        "observation_count": 83,
+        "median_observation_error_px": 8.347316249732906,
+        "p90_observation_error_px": 14.295128661073676,
+        "median_joint_error_px": 8.490940767692882,
+        "p90_joint_error_px": 18.875586391253808,
+        "optimizer_success": true,
+        "optimizer_cost": 95338.78073721347,
+        "held_out_initial_median_observation_error_px": 37.00362734253978,
+        "held_out_initial_p90_observation_error_px": 83.06145200892526,
+        "time_shift_ms": 20,
+        "intrinsic": {
+          "fx": 393.8890645448193,
+          "fy": 638.8595210545146,
+          "u0": 638.0323579469904,
+          "v0": 641.3214106675481,
+          "width": 1280,
+          "height": 1280
+        },
+        "warning": "These parameters describe the hand tracker's apparent 2D projection and are not a replacement for physical RGB camera calibration."
+      }
+    },
+    "ego不带tof": {
+      "matched_hand_observations": 163,
+      "supplied_extrinsic": {
+        "orientation_xyzw": [
+          -0.008613738595381188,
+          -0.00379406657493656,
+          0.005745075965229112,
+          0.9999391939630614
+        ],
+        "translation_m": [
+          -0.015949629247188568,
+          0.009689146652817726,
+          0.017170118167996407
+        ]
+      },
+      "modes": {
+        "direct_eucm": {
+          "mode": "direct",
+          "projection_model": "eucm",
+          "zero_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 24.30718898187313,
+            "p90_observation_error_px": 77.69091309464658,
+            "median_joint_error_px": 33.39999188725622,
+            "p90_joint_error_px": 84.92064168535256,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 23.900716458370233,
+            "p90_observation_error_px": 77.65965936627408,
+            "median_joint_error_px": 33.29347293887178,
+            "p90_joint_error_px": 85.02195474738018,
+            "time_shift_ms": 20
+          }
+        },
+        "provided_forward_eucm": {
+          "mode": "provided_forward",
+          "projection_model": "eucm",
+          "zero_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 28.186539674205378,
+            "p90_observation_error_px": 68.34317091033361,
+            "median_joint_error_px": 36.30005918462398,
+            "p90_joint_error_px": 77.19987473732694,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 28.186539674205378,
+            "p90_observation_error_px": 68.34317091033361,
+            "median_joint_error_px": 36.30005918462398,
+            "p90_joint_error_px": 77.19987473732694,
+            "time_shift_ms": 0
+          }
+        },
+        "provided_inverse_eucm": {
+          "mode": "provided_inverse",
+          "projection_model": "eucm",
+          "zero_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 39.86860813098827,
+            "p90_observation_error_px": 87.99463700011164,
+            "median_joint_error_px": 45.94466821329417,
+            "p90_joint_error_px": 94.16322013825756,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 39.86860813098827,
+            "p90_observation_error_px": 87.99463700011164,
+            "median_joint_error_px": 45.94466821329417,
+            "p90_joint_error_px": 94.16322013825756,
+            "time_shift_ms": 0
+          }
+        },
+        "direct_pinhole": {
+          "mode": "direct",
+          "projection_model": "pinhole",
+          "zero_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 23.416260709010086,
+            "p90_observation_error_px": 64.4367132415562,
+            "median_joint_error_px": 31.604412818879215,
+            "p90_joint_error_px": 75.55641232884754,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 23.416260709010086,
+            "p90_observation_error_px": 64.4367132415562,
+            "median_joint_error_px": 31.604412818879215,
+            "p90_joint_error_px": 75.55641232884754,
+            "time_shift_ms": 0
+          }
+        },
+        "provided_forward_pinhole": {
+          "mode": "provided_forward",
+          "projection_model": "pinhole",
+          "zero_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 27.039295027563018,
+            "p90_observation_error_px": 55.05804093975398,
+            "median_joint_error_px": 33.929900893333304,
+            "p90_joint_error_px": 68.19176440730362,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 26.541620957864982,
+            "p90_observation_error_px": 55.04784103438884,
+            "median_joint_error_px": 33.994392414689095,
+            "p90_joint_error_px": 68.4208263446022,
+            "time_shift_ms": 10
+          }
+        },
+        "provided_inverse_pinhole": {
+          "mode": "provided_inverse",
+          "projection_model": "pinhole",
+          "zero_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 40.78820463551833,
+            "p90_observation_error_px": 75.86238454473022,
+            "median_joint_error_px": 46.38373768798185,
+            "p90_joint_error_px": 85.30096405243759,
+            "time_shift_ms": 0
+          },
+          "best_shift": {
+            "observation_count": 163,
+            "median_observation_error_px": 40.78794787004377,
+            "p90_observation_error_px": 75.76431933718004,
+            "median_joint_error_px": 46.3582180639034,
+            "p90_joint_error_px": 85.24483047984529,
+            "time_shift_ms": 10
+          }
+        }
+      },
+      "best_supplied_mode": "direct",
+      "best_projection_model": "pinhole",
+      "visual_fit_held_out": {
+        "observation_count": 80,
+        "median_observation_error_px": 12.896779559621532,
+        "p90_observation_error_px": 34.88017803722136,
+        "median_joint_error_px": 15.970149924107972,
+        "p90_joint_error_px": 41.49135247248248,
+        "optimizer_success": true,
+        "optimizer_cost": 310128.34291212505,
+        "rotation_angle_deg": 9.162257986091523,
+        "translation_norm_mm": 100.90483721320626,
+        "held_out_initial_median_observation_error_px": 24.673871727066533,
+        "held_out_initial_p90_observation_error_px": 63.4778563104443,
+        "time_shift_ms": 0,
+        "projection_model": "pinhole",
+        "rotation_matrix": [
+          [
+            0.9915293574490059,
+            0.12495250254259883,
+            0.03544580969738629
+          ],
+          [
+            -0.12112848328654217,
+            0.9880939311862927,
+            -0.09485923091360034
+          ],
+          [
+            -0.04687668773989225,
+            0.0897622151083612,
+            0.9948594478042498
+          ]
+        ],
+        "translation_m": [
+          -0.030594181604380193,
+          0.08618530033091051,
+          -0.04263655980320899
+        ],
+        "warning": "This fit is for visual diagnosis only and must not replace manufacturer calibration without an independent target."
+      },
+      "virtual_pinhole_fit_held_out": {
+        "observation_count": 80,
+        "median_observation_error_px": 10.244150081147549,
+        "p90_observation_error_px": 12.052517948120798,
+        "median_joint_error_px": 10.05352544703967,
+        "p90_joint_error_px": 18.476355294748085,
+        "optimizer_success": true,
+        "optimizer_cost": 101796.00093966257,
+        "held_out_initial_median_observation_error_px": 24.673871727066533,
+        "held_out_initial_p90_observation_error_px": 63.4778563104443,
+        "time_shift_ms": 0,
+        "intrinsic": {
+          "fx": 396.3011880370191,
+          "fy": 635.1257154787867,
+          "u0": 640.7853833363511,
+          "v0": 641.286685705727,
+          "width": 1280,
+          "height": 1280
+        },
+        "warning": "These parameters describe the hand tracker's apparent 2D projection and are not a replacement for physical RGB camera calibration."
+      }
+    }
+  }
+}
