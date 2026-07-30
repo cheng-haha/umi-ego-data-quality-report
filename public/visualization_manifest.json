@@ -1,0 +1,184 @@
+[
+  {
+    "dataset": "ego不带tof",
+    "recording": "ego不带tof",
+    "preview": {
+      "output": "[local path omitted]",
+      "snapshot": "[local path omitted]",
+      "frames": 312,
+      "fps": 12,
+      "duration_s": 26,
+      "projection_model": "fitted virtual hand pinhole (diagnostic only)",
+      "intrinsic_source": "recording calibration",
+      "borrowed_intrinsic": false,
+      "ego_hand_projection": {
+        "source": "[local path omitted]",
+        "time_shift_ms": 0,
+        "held_out_median_error_px": 10.244150081147549,
+        "held_out_p90_error_px": 12.052517948120798,
+        "held_out_observation_count": 80,
+        "intrinsic": {
+          "fx": 396.3011880370191,
+          "fy": 635.1257154787867,
+          "u0": 640.7853833363511,
+          "v0": 641.286685705727,
+          "width": 1280,
+          "height": 1280
+        },
+        "provenance": "visualization_only_not_manufacturer_calibration"
+      },
+      "tool_frame_name": null,
+      "tool_transform_status": null,
+      "pose_to_tool_translation_m": null,
+      "pose_to_tool_rpy_deg": null,
+      "tool_axis_length_m": null
+    }
+  },
+  {
+    "dataset": "ego带tof",
+    "recording": "ego带tof",
+    "preview": {
+      "output": "[local path omitted]",
+      "snapshot": "[local path omitted]",
+      "frames": 288,
+      "fps": 12,
+      "duration_s": 24,
+      "projection_model": "fitted virtual hand pinhole (diagnostic only)",
+      "intrinsic_source": "recording calibration",
+      "borrowed_intrinsic": false,
+      "ego_hand_projection": {
+        "source": "[local path omitted]",
+        "time_shift_ms": 20,
+        "held_out_median_error_px": 8.347316249732906,
+        "held_out_p90_error_px": 14.295128661073676,
+        "held_out_observation_count": 83,
+        "intrinsic": {
+          "fx": 393.8890645448193,
+          "fy": 638.8595210545146,
+          "u0": 638.0323579469904,
+          "v0": 641.3214106675481,
+          "width": 1280,
+          "height": 1280
+        },
+        "provenance": "visualization_only_not_manufacturer_calibration"
+      },
+      "tool_frame_name": null,
+      "tool_transform_status": null,
+      "pose_to_tool_translation_m": null,
+      "pose_to_tool_rpy_deg": null,
+      "tool_axis_length_m": null
+    }
+  },
+  {
+    "dataset": "fastumi旧数据",
+    "recording": "left_hand_250801DR48FP26001748",
+    "preview": {
+      "output": "[local path omitted]",
+      "snapshot": "[local path omitted]",
+      "frames": 301,
+      "fps": 12,
+      "duration_s": 25.083333333333332,
+      "projection_model": "EUCM approximation",
+      "intrinsic_source": "borrowed median of 4 calibrations",
+      "borrowed_intrinsic": true,
+      "ego_hand_projection": null,
+      "tool_frame_name": "tcp",
+      "tool_transform_status": "hypothesis",
+      "pose_to_tool_translation_m": [
+        0,
+        0.13,
+        0.1
+      ],
+      "pose_to_tool_rpy_deg": [
+        0,
+        0,
+        0
+      ],
+      "tool_axis_length_m": 0.06
+    }
+  },
+  {
+    "dataset": "fastumi旧数据",
+    "recording": "right_hand_250801DR48FP26001744",
+    "preview": {
+      "output": "[local path omitted]",
+      "snapshot": "[local path omitted]",
+      "frames": 301,
+      "fps": 12,
+      "duration_s": 25.083333333333332,
+      "projection_model": "EUCM approximation",
+      "intrinsic_source": "borrowed median of 4 calibrations",
+      "borrowed_intrinsic": true,
+      "ego_hand_projection": null,
+      "tool_frame_name": "tcp",
+      "tool_transform_status": "hypothesis",
+      "pose_to_tool_translation_m": [
+        0,
+        0.13,
+        0.1
+      ],
+      "pose_to_tool_rpy_deg": [
+        0,
+        0,
+        0
+      ],
+      "tool_axis_length_m": 0.06
+    }
+  },
+  {
+    "dataset": "fastumi新",
+    "recording": "left_hand_250801DR48FP26001788",
+    "preview": {
+      "output": "[local path omitted]",
+      "snapshot": "[local path omitted]",
+      "frames": 370,
+      "fps": 12,
+      "duration_s": 30.833333333333332,
+      "projection_model": "EUCM approximation",
+      "intrinsic_source": "recording calibration",
+      "borrowed_intrinsic": false,
+      "ego_hand_projection": null,
+      "tool_frame_name": "tcp",
+      "tool_transform_status": "hypothesis",
+      "pose_to_tool_translation_m": [
+        0,
+        0.13,
+        0.1
+      ],
+      "pose_to_tool_rpy_deg": [
+        0,
+        0,
+        0
+      ],
+      "tool_axis_length_m": 0.06
+    }
+  },
+  {
+    "dataset": "fastumi新",
+    "recording": "right_hand_250801DR48FP26001795",
+    "preview": {
+      "output": "[local path omitted]",
+      "snapshot": "[local path omitted]",
+      "frames": 370,
+      "fps": 12,
+      "duration_s": 30.833333333333332,
+      "projection_model": "EUCM approximation",
+      "intrinsic_source": "recording calibration",
+      "borrowed_intrinsic": false,
+      "ego_hand_projection": null,
+      "tool_frame_name": "tcp",
+      "tool_transform_status": "hypothesis",
+      "pose_to_tool_translation_m": [
+        0,
+        0.13,
+        0.1
+      ],
+      "pose_to_tool_rpy_deg": [
+        0,
+        0,
+        0
+      ],
+      "tool_axis_length_m": 0.06
+    }
+  }
+]
