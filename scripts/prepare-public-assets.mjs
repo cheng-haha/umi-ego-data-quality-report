@@ -44,6 +44,24 @@ const publicHtml = sourceHtml.replace(
   "",
 );
 await writeFile(path.join(publicRoot, "quality_report.html"), publicHtml);
+await writeFile(
+  path.join(publicRoot, "index.html"),
+  `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="refresh" content="0; url=quality_report.html">
+    <title>UMI / Ego 数据质量审计报告</title>
+    <script>location.replace("quality_report.html");</script>
+  </head>
+  <body>
+    <p><a href="quality_report.html">打开 UMI / Ego 数据质量审计报告</a></p>
+  </body>
+</html>
+`,
+);
+await writeFile(path.join(publicRoot, ".nojekyll"), "");
 
 const resultsPath = path.join(publicRoot, "RESULTS.md");
 const results = await readFile(resultsPath, "utf8");
