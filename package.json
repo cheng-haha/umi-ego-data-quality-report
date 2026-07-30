@@ -5,23 +5,6 @@
   "scripts": {
     "prepare:assets": "node scripts/prepare-public-assets.mjs",
     "validate:assets": "node scripts/validate-public-assets.mjs",
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
-  },
-  "dependencies": {
-    "next": "16.2.12",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
-  },
-  "devDependencies": {
-    "@types/node": "24.10.1",
-    "@types/react": "19.2.2",
-    "@types/react-dom": "19.2.2",
-    "typescript": "5.9.3"
-  },
-  "overrides": {
-    "postcss": "8.5.25",
-    "sharp": "0.35.3"
+    "build": "node scripts/build-static-site.mjs"
   }
 }
